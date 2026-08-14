@@ -66,9 +66,14 @@ const MUTATION_ITEMS: MutationItem[] = [
   },
 ];
 
-// Mutates player and traits in place; returns a log line describing what happened.
-export function rollMutationItem(rng: () => number, player: Combatant, traits: UnicornTraits): string {
+export interface MutationResult {
+  name: string;
+  detail: string;
+}
+
+// Mutates player and traits in place; returns what to show on the reveal screen.
+export function rollMutationItem(rng: () => number, player: Combatant, traits: UnicornTraits): MutationResult {
   const item = pick(rng, MUTATION_ITEMS);
   const detail = item.apply(player, traits, rng);
-  return `✨ ${item.name}! ${detail}`;
+  return { name: item.name, detail };
 }

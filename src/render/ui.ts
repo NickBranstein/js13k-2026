@@ -123,10 +123,10 @@ export function drawHpBar(
   ctx.strokeStyle = PANEL_BORDER;
   ctx.stroke();
 
-  ctx.fillStyle = TEXT_COLOR;
   ctx.font = '600 19px sans-serif';
   ctx.textBaseline = 'bottom';
   const label = level === undefined ? combatant.name : `${combatant.name}  Lv.${level}`;
+  ctx.fillStyle = '#241a38';
   ctx.fillText(label, x + 4, y - 8);
 
   ctx.font = '600 15px sans-serif';
@@ -222,20 +222,6 @@ export function drawStatsPanel(
   });
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-}
-
-export function drawNameTag(ctx: CanvasRenderingContext2D, centerX: number, y: number, name: string): void {
-  ctx.font = '600 16px sans-serif';
-  const textW = ctx.measureText(name).width;
-  const w = textW + 32;
-  const h = 32;
-  const x = centerX - w / 2;
-  drawPanelBg(ctx, x, y, w, h, h / 2);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.fillText(name, centerX, y + h / 2);
-  ctx.textAlign = 'left';
 }
 
 const BOSS_BADGE_STOPS: [number, string][] = [
@@ -344,15 +330,9 @@ export interface RunStats {
 // Large gold "achievement" panel (matches drawLevelBadge's palette/glow),
 // centered on screen, summarizing the whole run rather than a small
 // off-to-the-side box.
-export function drawRunSummary(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  w: number,
-  h: number,
-  stats: RunStats,
-  t: number
-): void {
+// Gold gradient panel + radial glow + sheen, shared by every "achievement
+// moment" screen (run summary, mutation reveal) so they read as one family.
+function drawGoldPanel(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, w: number, h: number, t: number): void {
   const x = centerX - w / 2;
   const y = centerY - h / 2;
   const pulse = 0.5 + Math.sin(t / 500) * 0.5;
@@ -387,6 +367,77 @@ export function drawRunSummary(
   ctx.fillStyle = sheen;
   ctx.fillRect(x, y, w, h * 0.5);
   ctx.restore();
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Gold panel + a rainbow-cycling border ring on top — shared by every
+// "mutation moment" screen (reveal, transform) so they read as one sequence.
+export function drawTransformPanel(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, w: number, h: number, t: number): void {
+  drawGoldPanel(ctx, centerX, centerY, w, h, t);
+  panelPath(ctx, centerX - w / 2, centerY - h / 2, w, h, 22);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = `hsl(${(t / 8) % 360}, 90%, 65%)`;
+  ctx.stroke();
+}
+
+export function drawMutationReveal(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  w: number,
+  h: number,
+  name: string,
+  detail: string,
+  t: number
+): void {
+  drawTransformPanel(ctx, centerX, centerY, w, h, t);
+  const y = centerY - h / 2;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#4a2f1f';
+  ctx.textBaseline = 'top';
+  ctx.font = '700 20px sans-serif';
+  ctx.fillText('✨ Rainbow Fruit Found! ✨', centerX, y + 26);
+
+  ctx.font = '800 28px sans-serif';
+  ctx.fillText(name, centerX, y + 68);
+
+  ctx.font = '600 17px sans-serif';
+  const lines = wrapText(ctx, detail, w - 80);
+  lines.forEach((line, i) => ctx.fillText(line, centerX, y + 122 + i * 25));
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+export function drawRunSummary(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  w: number,
+  h: number,
+  stats: RunStats,
+  t: number
+): void {
+  drawGoldPanel(ctx, centerX, centerY, w, h, t);
+  const x = centerX - w / 2;
+  const y = centerY - h / 2;
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#4a2f1f';
@@ -429,7 +480,8 @@ export function drawMenu(
   w: number,
   h: number,
   options: string[],
-  selected: number
+  selected: number,
+  centered = false
 ): void {
   drawPanelBg(ctx, x, y, w, h);
 
@@ -441,16 +493,17 @@ export function drawMenu(
     const textY = rowY + rowH / 2;
     ctx.fillStyle = i === selected ? '#ffd166' : TEXT_COLOR;
     const text = i === selected ? `> ${label}` : `  ${label}`;
-    ctx.fillText(text, x + 20, textY);
+    const prefixW = ctx.measureText('> ').width;
+    const labelW = ctx.measureText(label).width;
+    const textX = centered ? x + w / 2 - (prefixW + labelW) / 2 : x + 20;
+    ctx.fillText(text, textX, textY);
 
     if (i === selected) {
-      const prefixW = ctx.measureText('> ').width;
-      const labelW = ctx.measureText(label).width;
       ctx.strokeStyle = '#ffd166';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(x + 20 + prefixW, textY + 15);
-      ctx.lineTo(x + 20 + prefixW + labelW, textY + 15);
+      ctx.moveTo(textX + prefixW, textY + 15);
+      ctx.lineTo(textX + prefixW + labelW, textY + 15);
       ctx.stroke();
     }
   });

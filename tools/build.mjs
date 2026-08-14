@@ -147,18 +147,27 @@ async function reportSize(zipPath) {
 
 async function run() {
   console.time('build');
+  console.log('[1/5] bundling with esbuild...');
   let code = await bundle();
+
+  console.log('[2/5] minifying with terser...');
   code = await terserPass(code);
 
   if (useRoadroller) {
+    console.log('[3/5] packing with roadroller (this is the slow step, ~15-25s)...');
     try {
       code = await roadrollPack(code);
     } catch (err) {
       console.warn('Roadroller pack failed, falling back to plain minified JS:', err.message);
     }
+  } else {
+    console.log('[3/5] skipping roadroller (--no-roadroller)');
   }
 
+  console.log('[4/5] inlining html...');
   const html = await buildHtml(code);
+
+  console.log('[5/5] zipping + advzip recompression...');
   const zipPath = await zipAndCompress(html);
   await reportSize(zipPath);
   console.timeEnd('build');

@@ -76,7 +76,7 @@ export function playerAttack(state: BattleState): void {
   enemyTurn(state);
 }
 
-const POTION_HEAL_PCT = 0.3;
+const POTION_HEAL_PCT = 0.4;
 
 export function playerUseItem(state: BattleState): void {
   if (state.phase !== 'PlayerTurn') return;

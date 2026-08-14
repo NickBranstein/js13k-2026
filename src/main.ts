@@ -9,10 +9,11 @@ import {
   drawFloorBadge,
   drawTitleCard,
   drawRunSummary,
+  drawMutationReveal,
+  drawTransformPanel,
   drawStatsPanel,
   drawLevelBadge,
   drawMuteToggle,
-  drawNameTag,
   maxLogScroll,
 } from './render/ui';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
@@ -49,7 +50,7 @@ const context = canvas.getContext('2d')!;
 const GAME_TITLE = '🦄 Rainbow Depths';
 const GAME_SUBTITLE = 'A procedural unicorn dungeon crawl';
 
-type GameState = 'Title' | 'Battle' | 'Event' | 'GameOver';
+type GameState = 'Title' | 'Battle' | 'Event' | 'MutationReveal' | 'MutationTransform' | 'GameOver';
 
 let runSeed = 0;
 let floor = 1;
@@ -66,6 +67,23 @@ let eventLines: string[] = [];
 let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 let selected = 0;
+
+// Set when a mutation item is found; consumed the next time the player would
+// otherwise advance a floor, showing the reveal screen (then the transform
+// animation) first. pendingMutationBefore snapshots the unicorn's look
+// before the mutation was applied, for the transform crossfade.
+let pendingMutationReveal: { name: string; detail: string } | null = null;
+let pendingMutationBefore: UnicornTraits | null = null;
+let transformStart: number | null = null;
+const TRANSFORM_DURATION = 1600;
+
+function tryAdvanceOrReveal(): void {
+  if (pendingMutationReveal) {
+    state = 'MutationReveal';
+    return;
+  }
+  advanceFloor();
+}
 
 // Run stats, tracked for the Game Over summary panel.
 let monstersDefeated = 0;
@@ -90,21 +108,17 @@ let enemyAttackAnimStart: number | null = null;
 let playerHitAnimStart: number | null = null;
 let enemyHitAnimStart: number | null = null;
 
-// Screen/floor transitions swap state at the midpoint of a fade — one
-// mechanism covers Title<->Battle, floor advances, and Battle/Event->GameOver
-// instead of hard cuts. Floor advances use the rainbow sweep; every other
-// transition uses the plain dark fade.
+// Screen transitions swap state at the midpoint of a fade — one mechanism
+// covers Title<->Battle and Battle/Event->GameOver instead of hard cuts.
+// Floor advances are instant (no transition).
 type FadePhase = 'none' | 'out' | 'in';
-type FadeStyle = 'dark' | 'rainbow';
 let fadePhase: FadePhase = 'none';
-let fadeStyle: FadeStyle = 'dark';
 let fadeStart = 0;
 let pendingAction: (() => void) | null = null;
 const FADE_DURATION = 220;
 
-function transitionTo(action: () => void, style: FadeStyle = 'dark'): void {
+function transitionTo(action: () => void): void {
   pendingAction = action;
-  fadeStyle = style;
   fadePhase = 'out';
   fadeStart = performance.now();
 }
@@ -127,6 +141,10 @@ function rewardRngFor(offset: number): () => number {
 // actions, treasure collect/leave, and advancing to the next floor.
 function currentMenuOptions(): string[] {
   if (state === 'Title') return ['Start'];
+  if (state === 'MutationReveal') return ['Continue'];
+  if (state === 'MutationTransform') {
+    return transformStart !== null && performance.now() - transformStart < TRANSFORM_DURATION ? [] : ['Continue'];
+  }
   if (state === 'GameOver') return ['New Run', 'Title Screen'];
   if (state === 'Battle') {
     if (!battle) return [];
@@ -232,6 +250,9 @@ function startRun(): void {
   treasuresFound = 0;
   trapsFound = 0;
   rainbowFruitsFound = 0;
+  pendingMutationReveal = null;
+  pendingMutationBefore = null;
+  transformStart = null;
   startAmbient();
   enterFloor();
 }
@@ -265,7 +286,8 @@ function maybeGrantBattleRewards(): void {
   }
 
   if (monsterTraits.isBoss) {
-    battle!.log.push(rollMutationItem(rewardRngFor(0x2), player, traits));
+    pendingMutationBefore = { ...traits };
+    pendingMutationReveal = rollMutationItem(rewardRngFor(0x2), player, traits);
     rainbowFruitsFound += 1;
   }
 }
@@ -301,6 +323,21 @@ function confirmSelection(): void {
     return;
   }
 
+  if (state === 'MutationReveal') {
+    state = 'MutationTransform';
+    transformStart = performance.now();
+    selected = 0;
+    return;
+  }
+
+  if (state === 'MutationTransform') {
+    pendingMutationReveal = null;
+    pendingMutationBefore = null;
+    transformStart = null;
+    advanceFloor();
+    return;
+  }
+
   if (state === 'GameOver') {
     if (choice === 'Title Screen') {
       transitionTo(() => {
@@ -327,7 +364,7 @@ function confirmSelection(): void {
           selected = 0;
         });
       } else {
-        transitionTo(advanceFloor, 'rainbow');
+        tryAdvanceOrReveal();
       }
       return;
     }
@@ -354,7 +391,8 @@ function confirmSelection(): void {
       player.hp = Math.min(player.maxHp, player.hp + result.heal);
       eventLines.push(`You find a treasure chest. Healed ${result.heal} HP.`);
       if (result.foundMutationItem) {
-        eventLines.push(rollMutationItem(rewardRngFor(0x3), player, traits));
+        pendingMutationBefore = { ...traits };
+        pendingMutationReveal = rollMutationItem(rewardRngFor(0x3), player, traits);
         rainbowFruitsFound += 1;
       }
     } else {
@@ -365,7 +403,7 @@ function confirmSelection(): void {
     return;
   }
 
-  transitionTo(advanceFloor, 'rainbow');
+  tryAdvanceOrReveal();
 }
 
 window.addEventListener('keydown', (e) => {
@@ -408,48 +446,12 @@ canvas.addEventListener(
   { passive: false }
 );
 
-const RAINBOW_SWEEP_STOPS: [number, string][] = [
-  [0, '#ff6b9e'],
-  [0.2, '#ffb36b'],
-  [0.4, '#fff36b'],
-  [0.6, '#6bffa3'],
-  [0.8, '#6bb8ff'],
-  [1, '#c26bff'],
-];
-
 function drawFadeOverlay(t: number): void {
   if (fadePhase === 'none') return;
   const progress = Math.min(1, (t - fadeStart) / FADE_DURATION);
-
-  if (fadeStyle === 'dark') {
-    const alpha = fadePhase === 'out' ? progress : 1 - progress;
-    context.fillStyle = `rgba(20,12,32,${alpha})`;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-
-  // Rainbow sweep (floor advances only): a band sweeps left-to-right across
-  // the whole transition — grows to fully cover the screen during "out"
-  // (state swap happens right as it's fully covered), then keeps sweeping
-  // the same direction to uncover during "in" — one continuous wipe rather
-  // than two separate fades.
-  const w = canvas.width;
-  const coverStart = fadePhase === 'out' ? 0 : progress * w;
-  const coverEnd = fadePhase === 'out' ? progress * w : w;
-  if (coverEnd <= coverStart) return;
-
-  const gradient = context.createLinearGradient(0, 0, w, 0);
-  RAINBOW_SWEEP_STOPS.forEach(([stop, color]) => gradient.addColorStop(stop, color));
-  context.fillStyle = gradient;
-  context.fillRect(coverStart, 0, coverEnd - coverStart, canvas.height);
-
-  const edgeX = fadePhase === 'out' ? coverEnd : coverStart;
-  const shimmer = context.createLinearGradient(edgeX - 24, 0, edgeX + 24, 0);
-  shimmer.addColorStop(0, 'rgba(255,255,255,0)');
-  shimmer.addColorStop(0.5, 'rgba(255,255,255,0.85)');
-  shimmer.addColorStop(1, 'rgba(255,255,255,0)');
-  context.fillStyle = shimmer;
-  context.fillRect(edgeX - 24, 0, 48, canvas.height);
+  const alpha = fadePhase === 'out' ? progress : 1 - progress;
+  context.fillStyle = `rgba(20,12,32,${alpha})`;
+  context.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawBackdrop() {
@@ -478,7 +480,6 @@ function render(): void {
     }
 
     drawBackdrop();
-    drawMuteToggle(context, canvas.width - 16, 16, isMuted());
     const uiScale = canvas.height / 600;
 
     if (state === 'Title') {
@@ -494,17 +495,21 @@ function render(): void {
       return;
     }
 
+    drawMuteToggle(context, canvas.width - 16, 16, isMuted());
+
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
     const playerShakeX = playerHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * (1 - playerHitP) : 0;
     const playerShakeY = playerHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * 0.5 * (1 - playerHitP) : 0;
 
-    context.save();
-    context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, canvas.height * 0.62 + playerShakeY);
-    context.scale(uiScale, uiScale);
-    drawUnicorn(context, 0, 0, traits, t);
-    context.restore();
-    if (playerHitP !== null) drawImpactBurst(context, PLAYER_SPRITE_X, canvas.height * 0.52, playerHitP);
+    if (state !== 'MutationTransform') {
+      context.save();
+      context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, canvas.height * 0.62 + playerShakeY);
+      context.scale(uiScale, uiScale);
+      drawUnicorn(context, 0, 0, traits, t);
+      context.restore();
+      if (playerHitP !== null) drawImpactBurst(context, PLAYER_SPRITE_X, canvas.height * 0.52, playerHitP);
+    }
 
     if (state === 'Battle' && monsterTraits) {
       const enemyLunge = animOffset(enemyAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
@@ -518,11 +523,6 @@ function render(): void {
       drawMonster(context, 0, 0, monsterTraits, t);
       context.restore();
       if (enemyHitP !== null) drawImpactBurst(context, ENEMY_SPRITE_X, canvas.height * 0.5, enemyHitP);
-      const nameTagY = Math.max(
-        126, // never closer than this to the enemy HP bar (y=80, h=26) + margin
-        canvas.height * 0.5 - 150 * monsterTraits.scale * uiScale
-      );
-      drawNameTag(context, ENEMY_SPRITE_X, nameTagY, monsterTraits.name);
     } else if (state === 'Event') {
       context.save();
       context.translate(ENEMY_SPRITE_X, canvas.height * 0.5);
@@ -577,7 +577,68 @@ function render(): void {
     if (autoFollowLog) logScroll = maxLogScroll(currentLog.length, LOG_H);
     drawLog(context, LOG_X, LOG_Y, LOG_W, LOG_H, currentLog, logScroll);
 
-    drawMenu(context, canvas.width - 340, canvas.height - 200, 284, 150, currentMenuOptions(), selected);
+    if (state === 'MutationReveal' && pendingMutationReveal) {
+      context.fillStyle = 'rgba(10,6,18,0.45)';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      drawMutationReveal(context, canvas.width / 2, canvas.height * 0.42, 560, 300, pendingMutationReveal.name, pendingMutationReveal.detail, t);
+    } else if (state === 'MutationTransform' && pendingMutationBefore) {
+      const progress = transformStart === null ? 1 : Math.min(1, (t - transformStart) / TRANSFORM_DURATION);
+      const tcx = canvas.width / 2;
+      const tcy = canvas.height * 0.4;
+      const tw = 700;
+      const th = 340;
+
+      context.fillStyle = 'rgba(10,6,18,0.45)';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      drawTransformPanel(context, tcx, tcy, tw, th, t);
+
+      const spriteScale = uiScale * 0.55;
+      const spriteY = tcy + th * 0.08;
+      const leftX = tcx - tw * 0.27;
+      const rightX = tcx + tw * 0.27;
+
+      context.save();
+      context.translate(leftX, spriteY);
+      context.scale(spriteScale, spriteScale);
+      drawUnicorn(context, 0, 0, pendingMutationBefore, t);
+      context.restore();
+
+      context.save();
+      context.translate(rightX, spriteY);
+      context.scale(spriteScale, spriteScale);
+      context.globalAlpha = progress;
+      drawUnicorn(context, 0, 0, traits, t);
+      context.globalAlpha = 1;
+      context.restore();
+
+      context.textAlign = 'center';
+      context.fillStyle = '#4a2f1f';
+      context.textBaseline = 'middle';
+      context.font = '700 42px sans-serif';
+      context.fillText('→', tcx, spriteY - th * 0.12);
+
+      context.textBaseline = 'top';
+      context.font = '700 20px sans-serif';
+      context.fillText('✨ Transformation ✨', tcx, tcy - th / 2 + 22);
+
+      if (progress >= 1) {
+        context.font = '600 18px sans-serif';
+        context.fillText('Transformation complete!', tcx, tcy + th / 2 - 96);
+      }
+      context.textAlign = 'left';
+      context.textBaseline = 'alphabetic';
+    }
+
+    const menuOptions = currentMenuOptions();
+    if (state === 'MutationReveal') {
+      drawMenu(context, canvas.width / 2 - 142, canvas.height * 0.42 + 300 / 2 - 66, 284, 56, menuOptions, selected);
+    } else if (state === 'MutationTransform') {
+      if (menuOptions.length > 0) {
+        drawMenu(context, canvas.width / 2 - 90, canvas.height * 0.4 + 340 / 2 - 66, 180, 48, menuOptions, selected, true);
+      }
+    } else {
+      drawMenu(context, canvas.width - 340, canvas.height - 200, 284, 150, menuOptions, selected);
+    }
     drawFadeOverlay(t);
 }
 

@@ -82,70 +82,35 @@ export function playDefeat(): void {
   [392, 330, 262].forEach((f, i) => tone(f, i * 0.14, 0.22, 'sawtooth', 0.08));
 }
 
-// Soothing ambient music played while exploring the dungeon: a soft detuned
-// pad for sustain, plus a slowly wandering pentatonic melody on top (a random
-// walk over a fixed scale, not a fixed loop) so it reads as an evolving tune
-// rather than a static chord. Faded in/out rather than cut.
-let ambient: { osc: OscillatorNode[]; gain: GainNode } | null = null;
+// Soothing ambient music played while exploring the dungeon: a slowly
+// wandering pentatonic melody (a random walk over a fixed scale, not a fixed
+// loop) so it reads as an evolving tune. No sustained drone underneath —
+// just the melody notes fading in and out on their own.
+let ambientOn = false;
 
 const MELODY_SCALE = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25];
 let melodyIndex = 3;
 let melodyTimer: number | null = null;
 
 function scheduleMelodyNote(): void {
-  if (!ambient) return;
+  if (!ambientOn) return;
   if (Math.random() > 0.2) {
     const step = Math.floor(Math.random() * 5) - 2;
     melodyIndex = Math.max(0, Math.min(MELODY_SCALE.length - 1, melodyIndex + step));
-    tone(MELODY_SCALE[melodyIndex], 0, 1.1, 'triangle', 0.05);
+    tone(MELODY_SCALE[melodyIndex], 0, 1.1, 'triangle', 0.06);
   }
   melodyTimer = window.setTimeout(scheduleMelodyNote, 550 + Math.random() * 450);
 }
 
 export function startAmbient(): void {
-  if (ambient) return;
-  const c = getCtx();
-  const master = c.createGain();
-  master.gain.value = 0;
-  master.gain.linearRampToValueAtTime(0.05, c.currentTime + 2.5);
-  master.connect(getMasterOut());
-
-  const osc = [130.81, 164.81, 196.0].map((freq, i) => {
-    const o = c.createOscillator();
-    o.type = 'sine';
-    o.frequency.value = freq;
-    o.detune.value = (i - 1) * 5;
-    const g = c.createGain();
-    g.gain.value = 0.34;
-    o.connect(g);
-    g.connect(master);
-    o.start();
-    return o;
-  });
-
-  const lfo = c.createOscillator();
-  lfo.frequency.value = 0.08;
-  const lfoGain = c.createGain();
-  lfoGain.gain.value = 0.015;
-  lfo.connect(lfoGain);
-  lfoGain.connect(master.gain);
-  lfo.start();
-  osc.push(lfo);
-
-  ambient = { osc, gain: master };
+  if (ambientOn) return;
+  ambientOn = true;
   melodyIndex = 3;
   scheduleMelodyNote();
 }
 
 export function stopAmbient(): void {
-  if (!ambient) return;
-  const c = getCtx();
-  const { osc, gain } = ambient;
-  gain.gain.cancelScheduledValues(c.currentTime);
-  gain.gain.setValueAtTime(gain.gain.value, c.currentTime);
-  gain.gain.linearRampToValueAtTime(0, c.currentTime + 1);
-  setTimeout(() => osc.forEach((o) => o.stop()), 1100);
-  ambient = null;
+  ambientOn = false;
   if (melodyTimer !== null) {
     clearTimeout(melodyTimer);
     melodyTimer = null;
