@@ -490,7 +490,7 @@ function render(): void {
       context.restore();
 
       drawTitleCard(context, 48, 40, GAME_TITLE, GAME_SUBTITLE, t);
-      drawMenu(context, canvas.width / 2 - 142, canvas.height - 140, 284, 60, currentMenuOptions(), selected);
+      drawMenu(context, canvas.width / 2 - 68, canvas.height - 140, 136, 48, currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
       return;
     }
