@@ -1,0 +1,7 @@
+node_modules/
+dist/
+build/
+game.zip
+*.log
+.DS_Store
+.claude/
