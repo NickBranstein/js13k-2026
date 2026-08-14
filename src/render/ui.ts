@@ -18,14 +18,23 @@ function panelPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 // rightX is the panel's right edge, so it stays flush against that edge
 // regardless of the text width (which changes slightly with muted state).
-export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y: number, muted: boolean): void {
+// Exported so main.ts's click handler can hit-test the exact same rect
+// drawMuteToggle draws, instead of duplicating the width math.
+export function muteToggleBounds(
+  ctx: CanvasRenderingContext2D,
+  rightX: number,
+  y: number,
+  muted: boolean
+): { x: number; y: number; w: number; h: number } {
   ctx.font = '600 16px sans-serif';
+  const textW = ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width;
+  const w = textW + 28;
+  return { x: rightX - w, y, w, h: 34 };
+}
+
+export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y: number, muted: boolean): void {
+  const { x, w, h } = muteToggleBounds(ctx, rightX, y, muted);
   const text = `[M]ute [${muted ? 'X' : ' '}]`;
-  const textW = ctx.measureText(text).width;
-  const padX = 14;
-  const w = textW + padX * 2;
-  const h = 34;
-  const x = rightX - w;
 
   panelPath(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(53,32,84,0.85)';
@@ -39,6 +48,28 @@ export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y:
   ctx.fillStyle = TEXT_COLOR;
   ctx.fillText(text, x + w / 2, y + h / 2 + 1);
 
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+// Small round "?" button, same visual family as the mute toggle — gives
+// mouse/touch users a way to open the how-to-play panel (Escape-only
+// otherwise, which touch devices can't send).
+export function drawHelpButton(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  const r = size / 2;
+  ctx.beginPath();
+  ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(53,32,84,0.85)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = PANEL_BORDER;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 16px sans-serif';
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.fillText('?', x + r, y + r + 1);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }

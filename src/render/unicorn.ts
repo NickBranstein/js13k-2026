@@ -55,7 +55,7 @@ export const MANE_MOODS: ManeMood[] = [
   { name: 'Ember Glow', stops: ['#ff3d1a', '#ffb01a', '#991a80'] },
 ];
 
-const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
+export const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
 
 // Rainbow Nectar paints a coat pattern over the body barrel, colored from
 // this pool — '' means no pattern (the default for a freshly-generated
@@ -75,7 +75,7 @@ export function rollHornPalette(rng: () => number): string[] {
   return [stops[i], stops[j]];
 }
 const HORN_TURNS = 4;
-const EYE_COLORS = ['#6b4bd6', '#d68b3f', '#3f9fd6', '#2fae76'];
+export const EYE_COLORS = ['#6b4bd6', '#d68b3f', '#3f9fd6', '#2fae76'];
 export const INK_OUTLINE = '#241a38';
 
 // Comet Shard's orbiting particles reuse the PATTERN_COLORS pool — no glow
