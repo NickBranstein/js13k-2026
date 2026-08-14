@@ -2,9 +2,12 @@
 // panels to match the "unicorns and rainbows" theme rather than flat boxes.
 
 import type { Combatant } from '../game/battle';
+import { PATTERN_COLORS as TITLE_SPARKLE_COLORS } from './unicorn';
 
 const PANEL_BORDER = 'rgba(255,240,250,0.85)';
-const TEXT_COLOR = '#f4ecff';
+export const TEXT_COLOR = '#f4ecff';
+export const GOLD_TEXT = '#4a2f1f';
+const SELECT_GOLD = '#ffd166';
 const PANEL_RADIUS = 16;
 const HP_LOW_THRESHOLD = 0.5;
 
@@ -146,41 +149,10 @@ export function drawHpBar(
 export function drawLevelBadge(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, level: number, t: number): void {
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const pulse = 0.5 + Math.sin(t / 450) * 0.5;
-
-  ctx.save();
-  const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, w * 0.85);
-  glow.addColorStop(0, `rgba(255,214,102,${0.45 + pulse * 0.25})`);
-  glow.addColorStop(1, 'rgba(255,214,102,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(cx, cy, w * 0.85, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  panelPath(ctx, x, y, w, h, 16);
-  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-  grad.addColorStop(0, '#ffe08a');
-  grad.addColorStop(0.5, '#ffb36b');
-  grad.addColorStop(1, '#ff8fa3');
-  ctx.fillStyle = grad;
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.stroke();
-
-  ctx.save();
-  panelPath(ctx, x, y, w, h, 16);
-  ctx.clip();
-  const sheen = ctx.createLinearGradient(x, y, x, y + h * 0.55);
-  sheen.addColorStop(0, 'rgba(255,255,255,0.35)');
-  sheen.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = sheen;
-  ctx.fillRect(x, y, w, h * 0.55);
-  ctx.restore();
+  drawGoldPanel(ctx, cx, cy, w, h, t, 16, 2, 0.85, 0.45, 0.25, 2.5, 0.35);
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#4a2f1f';
+  ctx.fillStyle = GOLD_TEXT;
   ctx.font = '700 10px sans-serif';
   ctx.textBaseline = 'bottom';
   ctx.fillText('LEVEL', cx, cy - 1);
@@ -263,8 +235,6 @@ export function drawFloorBadge(
   ctx.textBaseline = 'alphabetic';
 }
 
-const TITLE_SPARKLE_COLORS = ['#ff9ecb', '#ffd28a', '#fff59e', '#9effc4', '#9ecfff', '#c39eff'];
-
 // Left-anchored (title screen keeps this in a corner, clear of the unicorn
 // preview) rainbow-gradient title with a soft glow, gentle pulse, and
 // orbiting sparkles — meant to read as a "wow" moment, not just a label.
@@ -331,45 +301,61 @@ export interface RunStats {
 // centered on screen, summarizing the whole run rather than a small
 // off-to-the-side box.
 // Gold gradient panel + radial glow + sheen, shared by every "achievement
-// moment" screen (run summary, mutation reveal) so they read as one family.
-function drawGoldPanel(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, w: number, h: number, t: number): void {
+// moment" UI element (level badge, run summary, mutation reveal) so they
+// read as one family. The optional params let drawLevelBadge reuse this with
+// a tighter radius/glow instead of duplicating the whole block.
+function drawGoldPanel(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  w: number,
+  h: number,
+  t: number,
+  radius = 22,
+  glowR0 = 10,
+  glowScale = 0.65,
+  glowA0 = 0.3,
+  glowA1 = 0.15,
+  strokeW = 3,
+  sheenA = 0.32
+): void {
   const x = centerX - w / 2;
   const y = centerY - h / 2;
   const pulse = 0.5 + Math.sin(t / 500) * 0.5;
 
   ctx.save();
-  const glow = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, w * 0.65);
-  glow.addColorStop(0, `rgba(255,214,102,${0.3 + pulse * 0.15})`);
+  const glow = ctx.createRadialGradient(centerX, centerY, glowR0, centerX, centerY, w * glowScale);
+  glow.addColorStop(0, `rgba(255,214,102,${glowA0 + pulse * glowA1})`);
   glow.addColorStop(1, 'rgba(255,214,102,0)');
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, w * 0.65, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, w * glowScale, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  panelPath(ctx, x, y, w, h, 22);
+  panelPath(ctx, x, y, w, h, radius);
   const grad = ctx.createLinearGradient(x, y, x + w, y + h);
   grad.addColorStop(0, '#ffe08a');
   grad.addColorStop(0.5, '#ffb36b');
   grad.addColorStop(1, '#ff8fa3');
   ctx.fillStyle = grad;
   ctx.fill();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = strokeW;
   ctx.strokeStyle = 'rgba(255,255,255,0.9)';
   ctx.stroke();
 
   ctx.save();
-  panelPath(ctx, x, y, w, h, 22);
+  panelPath(ctx, x, y, w, h, radius);
   ctx.clip();
   const sheen = ctx.createLinearGradient(x, y, x, y + h * 0.5);
-  sheen.addColorStop(0, 'rgba(255,255,255,0.32)');
+  sheen.addColorStop(0, `rgba(255,255,255,${sheenA})`);
   sheen.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = sheen;
   ctx.fillRect(x, y, w, h * 0.5);
   ctx.restore();
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+export function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(' ');
   const lines: string[] = [];
   let line = '';
@@ -410,7 +396,7 @@ export function drawMutationReveal(
   const y = centerY - h / 2;
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#4a2f1f';
+  ctx.fillStyle = GOLD_TEXT;
   ctx.textBaseline = 'top';
   ctx.font = '700 20px sans-serif';
   ctx.fillText('✨ Rainbow Fruit Found! ✨', centerX, y + 26);
@@ -440,7 +426,7 @@ export function drawRunSummary(
   const y = centerY - h / 2;
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#4a2f1f';
+  ctx.fillStyle = GOLD_TEXT;
   ctx.font = '800 30px sans-serif';
   ctx.textBaseline = 'top';
   ctx.fillText('Run Over', centerX, y + 22);
@@ -461,7 +447,7 @@ export function drawRunSummary(
   rows.forEach(([label, val], i) => {
     const rowY = startY + i * rowH;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#4a2f1f';
+    ctx.fillStyle = GOLD_TEXT;
     ctx.fillText(label, x + 40, rowY);
     ctx.textAlign = 'right';
     ctx.font = '700 18px sans-serif';
@@ -491,7 +477,7 @@ export function drawMenu(
   options.forEach((label, i) => {
     const rowY = y + rowH * i;
     const textY = rowY + rowH / 2;
-    ctx.fillStyle = i === selected ? '#ffd166' : TEXT_COLOR;
+    ctx.fillStyle = i === selected ? SELECT_GOLD : TEXT_COLOR;
     const text = i === selected ? `> ${label}` : `  ${label}`;
     const prefixW = ctx.measureText('> ').width;
     const labelW = ctx.measureText(label).width;
@@ -499,7 +485,7 @@ export function drawMenu(
     ctx.fillText(text, textX, textY);
 
     if (i === selected) {
-      ctx.strokeStyle = '#ffd166';
+      ctx.strokeStyle = SELECT_GOLD;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(textX + prefixW, textY + 15);

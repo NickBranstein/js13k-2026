@@ -3,8 +3,8 @@
 
 import type { Combatant } from './battle';
 import type { UnicornTraits } from '../render/unicorn';
-import { COATS, MANE_MOODS, AURA_TYPES } from '../render/unicorn';
-import { pick } from './rng';
+import { COATS, PATTERNS, PATTERN_COLORS, GLOW_SHAPES, rollManeStops, rollHornPalette } from '../render/unicorn';
+import { pick, rangeInt } from './rng';
 
 // Not every fight should reward a consumable — this keeps Item scarce enough
 // to be a real choice rather than a free extra action every battle.
@@ -19,31 +19,34 @@ interface MutationItem {
   apply: (player: Combatant, traits: UnicornTraits, rng: () => number) => string;
 }
 
-const MUTATION_ITEMS: MutationItem[] = [
+export const MUTATION_ITEMS: MutationItem[] = [
   {
     name: 'Unicorn Fruit',
-    apply: (player, traits) => {
-      traits.hornTurns += 1;
+    apply: (player, traits, rng) => {
+      traits.hornPalette = rollHornPalette(rng);
       player.atk += 3;
-      return 'Your horn grows another spiral turn and your strikes sharpen. (+3 ATK)';
+      return 'Your horn glows with a new color and your strikes sharpen. (+3 ATK)';
     },
   },
   {
     name: 'Rainbow Nectar',
     apply: (player, traits, rng) => {
-      traits.aura = pick(rng, AURA_TYPES);
+      traits.pattern = pick(rng, PATTERNS);
+      traits.patternColor = pick(rng, PATTERN_COLORS);
       player.maxHp += 15;
       player.hp += 15;
-      return `Your aura shifts to a ${traits.aura} and your vitality swells. (+15 Max HP)`;
+      return `Your coat blooms with ${traits.pattern.toLowerCase()} and your vitality swells. (+15 Max HP)`;
     },
   },
   {
     name: 'Comet Shard',
-    apply: (player, traits) => {
-      traits.scale += 0.06;
+    apply: (player, traits, rng) => {
+      traits.glowColor = pick(rng, PATTERN_COLORS);
+      traits.glowCount = rangeInt(rng, 2, 5);
+      traits.glowShape = pick(rng, GLOW_SHAPES);
       player.atk += 1;
       player.def += 1;
-      return 'You grow slightly larger and sturdier all around. (+1 ATK, +1 DEF)';
+      return `${traits.glowCount} glowing comet ${traits.glowShape.toLowerCase()}s now orbit you, sturdier all around. (+1 ATK, +1 DEF)`;
     },
   },
   {
@@ -55,13 +58,11 @@ const MUTATION_ITEMS: MutationItem[] = [
     },
   },
   {
-    name: 'Starlight Mane',
+    name: 'Starlight Berry',
     apply: (player, traits, rng) => {
-      const mood = pick(rng, MANE_MOODS);
-      traits.mood = mood;
-      traits.maneStops = mood.stops;
+      traits.maneStops = rollManeStops(rng);
       player.charisma += 5;
-      return `Your mane recolors into a ${mood.name} and your charm deepens. (+5 Charisma)`;
+      return 'Your mane recolors into shimmering new hues and your charm deepens. (+5 Charisma)';
     },
   },
 ];

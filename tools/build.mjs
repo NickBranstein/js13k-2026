@@ -31,6 +31,7 @@ async function bundle() {
     minify: true,
     write: false,
     outdir: DIST,
+    define: { __DEV__: 'false' },
   });
   return result.outputFiles[0].text;
 }
@@ -49,6 +50,7 @@ async function devBuild() {
     minify: false,
     sourcemap: 'inline',
     outfile: path.join(DIST, 'bundle.js'),
+    define: { __DEV__: 'true' },
   });
 }
 
@@ -99,6 +101,7 @@ async function buildHtml(jsCode) {
     collapseWhitespace: true,
     removeComments: true,
     removeAttributeQuotes: true,
+    removeOptionalTags: true,
     minifyCSS: true,
     minifyJS: false,
   });

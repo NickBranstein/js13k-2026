@@ -7,8 +7,8 @@
 // rolled name instead of being independently randomized.
 
 import type { MonsterTraits } from '../game/monster';
-
-const OUTLINE = '#241a38';
+import { INK_OUTLINE as OUTLINE } from './unicorn';
+import { TEXT_COLOR } from './ui';
 
 function fillStroke(ctx: CanvasRenderingContext2D, fill: string): void {
   ctx.fillStyle = fill;
@@ -146,7 +146,7 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
     ctx.fill();
     ctx.stroke();
     // tusks
-    ctx.fillStyle = '#f4ecff';
+    ctx.fillStyle = TEXT_COLOR;
     ctx.beginPath();
     ctx.moveTo(bodyR * 1.15, -bodyR * 0.08);
     ctx.quadraticCurveTo(bodyR * 1.3, -bodyR * 0.02, bodyR * 1.22, bodyR * 0.12);
@@ -314,7 +314,7 @@ function drawSerpent(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
     ctx.lineTo(len * 0.34, len * 0.08);
     ctx.closePath();
     fillStroke(ctx, traits.palette.light);
-    ctx.fillStyle = '#f4ecff';
+    ctx.fillStyle = TEXT_COLOR;
     ctx.beginPath();
     ctx.moveTo(len * 0.5, len * 0.02);
     ctx.lineTo(len * 0.54, len * 0.11);

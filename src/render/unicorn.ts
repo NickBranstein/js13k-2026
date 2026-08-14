@@ -1,9 +1,9 @@
 // Procedural flat-2D-sprite unicorn renderer.
 // Rebuilt from scratch around a recognizable equine side-profile silhouette.
 // The original trait model, palettes, seeded randomness, animation, mane/tail,
-// horn, and aura concepts are retained as the template for the new renderer.
+// and horn concepts are retained as the template for the new renderer.
 
-import { mulberry32, pick, range } from '../game/rng';
+import { mulberry32, pick } from '../game/rng';
 
 export interface Coat {
   name: string;
@@ -19,20 +19,17 @@ export interface ManeMood {
 export interface UnicornTraits {
   seed: number;
   coat: Coat;
-  mood: ManeMood;
   style: string;
   strandCount: number;
-  hornTurns: number;
-  aura: string;
+  hornPalette: string[];
+  pattern: string;
+  patternColor: string;
   eye: string;
-  sizeClass: string;
-  scale: number;
-  headRatio: number;
   maneStops: string[];
   maneSeed: number;
-  earFlop: number;
-  earStyle: string;
-  earScale: number;
+  glowColor: string;
+  glowCount: number;
+  glowShape: string;
 }
 
 // ---------- curated palettes ----------
@@ -48,58 +45,75 @@ export const COATS: Coat[] = [
 ];
 
 export const MANE_MOODS: ManeMood[] = [
-  { name: 'Pastel Rainbow', stops: ['#ffb3c6', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff'] },
-  { name: 'Jewel Rainbow', stops: ['#ff2e63', '#ff9f1c', '#ffd23f', '#2ec4b6', '#3a86ff', '#7b2ff7', '#c724b1'] },
-  { name: 'Sunset Rainbow', stops: ['#ff5e5b', '#ff9b42', '#ffd166', '#f6c453', '#ef476f', '#c93b78', '#7d3ac1'] },
-  { name: 'Aurora Rainbow', stops: ['#38f9d7', '#43e97b', '#a1ffce', '#5ee7df', '#66a6ff', '#a06cff', '#f7797d'] },
+  { name: 'Pastel Rainbow', stops: ['#ffb3c6', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff'] },
+  { name: 'Jewel Rainbow', stops: ['#ff2e63', '#ff9f1c', '#ffd23f', '#2ec4b6', '#3a86ff'] },
+  { name: 'Sunset Rainbow', stops: ['#ff5e5b', '#ff9b42', '#ffd166', '#f6c453', '#ef476f'] },
+  { name: 'Aurora Rainbow', stops: ['#38f9d7', '#43e97b', '#a1ffce', '#5ee7df', '#66a6ff', '#a06cff'] },
+  { name: 'Cotton Candy', stops: ['#ffd1e8', '#c9a2ff', '#a2ffe0'] },
+  { name: 'Cosmic Ice', stops: ['#e0f7ff', '#7fb8ff', '#ff8fd9'] },
+  { name: 'Wildflower', stops: ['#ff6b9d', '#ffe36b', '#6bd9ff'] },
+  { name: 'Ember Glow', stops: ['#ff3d1a', '#ffb01a', '#991a80'] },
 ];
 
 const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
-export const AURA_TYPES = ['Halo Ring', 'Sparkle Trail', 'Comet Arc'];
+
+// Rainbow Nectar paints a coat pattern over the body barrel, colored from
+// this pool — '' means no pattern (the default for a freshly-generated
+// unicorn that hasn't picked one up yet).
+export const PATTERNS = ['Stripes', 'Spots', 'Stars'];
+export const PATTERN_COLORS = ['#ff9ecb', '#ffd28a', '#9effc4', '#9ecfff', '#c39eff', '#fff59e', '#ffffff'];
+
+// Horn banding pulls two colors from a random mane mood, sharing the color
+// pool instead of maintaining a separate hardcoded palette list — the mood
+// rolled here is independent of the unicorn's own mane, so the horn doesn't
+// have to match its mane theme.
+export function rollHornPalette(rng: () => number): string[] {
+  const stops = pick(rng, MANE_MOODS).stops;
+  const i = Math.floor(rng() * stops.length);
+  let j = Math.floor(rng() * (stops.length - 1));
+  if (j >= i) j++;
+  return [stops[i], stops[j]];
+}
+const HORN_TURNS = 4;
 const EYE_COLORS = ['#6b4bd6', '#d68b3f', '#3f9fd6', '#2fae76'];
-const SIZE_CLASSES = ['Foal', 'Yearling', 'Adult'];
-const EAR_STYLES = ['Petite', 'Rounded', 'Tall', 'Pixie'];
-const EAR_SCALES: Record<string, number> = { Petite: 0.75, Rounded: 0.95, Tall: 1.35, Pixie: 1.1 };
-const INK_OUTLINE = '#241a38';
+export const INK_OUTLINE = '#241a38';
+
+// Comet Shard's orbiting particles reuse the PATTERN_COLORS pool — no glow
+// ('' on traits.glowColor) is the default for a freshly-generated unicorn
+// that hasn't picked one up yet.
+export const GLOW_SHAPES = ['Dot', 'Star', 'Streak'];
+
+// Rotates a mood's color stops by a random offset so two unicorns sharing a
+// mood don't render with the exact same starting color.
+export function rollManeStops(rng: () => number): string[] {
+  const mood = pick(rng, MANE_MOODS);
+  const offset = Math.floor(rng() * mood.stops.length);
+  return mood.stops.slice(offset).concat(mood.stops.slice(0, offset));
+}
 
 export function generateUnicornTraits(seed: number): UnicornTraits {
   const rng = mulberry32(seed >>> 0);
   const coat = pick(rng, COATS);
-  const mood = pick(rng, MANE_MOODS);
   const style = pick(rng, MANE_STYLES);
   const strandCount = style === 'Wispy' ? 4 : style === 'Braided' ? 5 : 7;
-  const hornTurns = Math.round(range(rng, 3, 6));
-  const aura = pick(rng, AURA_TYPES);
+  const hornPalette = rollHornPalette(rng);
   const eye = pick(rng, EYE_COLORS);
-  const sizeIdx = Math.floor(range(rng, 0, 3));
-  const sizeClass = SIZE_CLASSES[sizeIdx];
-  const scale = [0.78, 0.92, 1.06][sizeIdx];
-
-  // Kept for compatibility with the original trait contract. The renderer now
-  // uses headRatio as a modest head-size variation rather than a round-head ratio.
-  const headRatio = [0.92, 0.98, 1.04][sizeIdx];
-
-  const offset = Math.floor(rng() * mood.stops.length);
-  const maneStops = mood.stops.slice(offset).concat(mood.stops.slice(0, offset));
-  const earStyle = pick(rng, EAR_STYLES);
+  const maneStops = rollManeStops(rng);
 
   return {
     seed: seed >>> 0,
     coat,
-    mood,
     style,
     strandCount,
-    hornTurns,
-    aura,
+    hornPalette,
+    pattern: '',
+    patternColor: '',
     eye,
-    sizeClass,
-    scale,
-    headRatio,
     maneStops,
     maneSeed: rng() * 1000,
-    earFlop: range(rng, -0.08, 0.08),
-    earStyle,
-    earScale: EAR_SCALES[earStyle],
+    glowColor: '',
+    glowCount: 3,
+    glowShape: 'Dot',
   };
 }
 
@@ -270,12 +284,12 @@ function drawMane(
 ) {
   const stops = traits.maneStops;
   const n = traits.strandCount;
-  const curl = traits.style === 'Curly' ? 1 : traits.style === 'Braided' ? 0.45 : traits.style === 'Wispy' ? 0.2 : 0.12;
+  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : traits.style === 'Wispy' ? 0.3 : 0;
 
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
     const phase = traits.maneSeed + i * 1.9;
-    const sway = Math.sin(t * 0.0015 + phase) * (7 + curl * 12);
+    const sway = Math.sin(t * 0.0015 + phase) * (6 + curl * 16) + Math.sin(t * 0.004 + phase * 2) * curl * 7;
     const x0 = neckX + 8 + f * 7;
     const y0 = neckTopY + f * 12;
     const x1 = neckX - 23 - f * 8;
@@ -289,12 +303,12 @@ function drawMane(
 function drawTail(ctx: CanvasRenderingContext2D, x: number, y: number, traits: UnicornTraits, t: number) {
   const stops = traits.maneStops;
   const n = Math.max(5, traits.strandCount);
-  const curl = traits.style === 'Curly' ? 1 : traits.style === 'Braided' ? 0.45 : 0.15;
+  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : traits.style === 'Wispy' ? 0.3 : 0;
 
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
     const phase = traits.maneSeed + 30 + i * 2.3;
-    const sway = Math.sin(t * 0.0014 + phase) * (11 + curl * 12);
+    const sway = Math.sin(t * 0.0014 + phase) * (9 + curl * 16) + Math.sin(t * 0.0038 + phase * 2) * curl * 7;
     strokeCurve(
       ctx,
       x,
@@ -356,8 +370,8 @@ function drawEquineHead(
 ) {
   // The head is deliberately constructed as an elongated side-profile path.
   // There is no ellipse anywhere in the skull/muzzle silhouette.
-  const headLen = 67 * scale * traits.headRatio;
-  const skullH = 54 * scale * traits.headRatio;
+  const headLen = 67 * scale;
+  const skullH = 54 * scale;
   const muzzleLen = 47 * scale;
   const muzzleDrop = 13 * scale;
 
@@ -387,9 +401,8 @@ function drawEquineHead(
   ctx.globalAlpha = 1;
 
   // Ears sit on the back/top of the skull.
-  const es = traits.earScale;
-  drawEar(ctx, x - headLen * 0.28, y - skullH * 0.38, 25 * scale * es, 15 * scale * es, -0.16 + traits.earFlop, shades);
-  drawEar(ctx, x - headLen * 0.02, y - skullH * 0.40, 29 * scale * es, 16 * scale * es, 0.10 + traits.earFlop, shades, '#ffb0ca');
+  drawEar(ctx, x - headLen * 0.28, y - skullH * 0.38, 25 * scale, 15 * scale, -0.16, shades);
+  drawEar(ctx, x - headLen * 0.02, y - skullH * 0.40, 29 * scale, 16 * scale, 0.10, shades, '#ffb0ca');
 
   // Eye: small, high, and toward the rear of the skull.
   const eyeX = x - headLen * 0.18;
@@ -460,17 +473,16 @@ function drawEquineHead(
   };
 }
 
-// ---------- horn / aura ----------
+// ---------- horn ----------
 function drawHorn(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   h: number,
-  turns: number,
-  mood: ManeMood,
+  palette: string[],
   angle: number
 ) {
-  const w = 8;
+  const w = 12;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
@@ -498,11 +510,11 @@ function drawHorn(
   ctx.save();
   hornPath();
   ctx.clip();
-  for (let i = 0; i < turns * 2; i++) {
-    const f = i / (turns * 2);
+  for (let i = 0; i < HORN_TURNS * 2; i++) {
+    const f = i / (HORN_TURNS * 2);
     const yy = -f * h;
     const ww = w * (1 - f) + 1;
-    ctx.strokeStyle = rgba(mood.stops[i % mood.stops.length], 0.9);
+    ctx.strokeStyle = rgba(palette[i % palette.length], 0.9);
     ctx.lineWidth = 2.4;
     ctx.beginPath();
     ctx.moveTo(-ww, yy + 5);
@@ -513,53 +525,8 @@ function drawHorn(
   ctx.restore();
 }
 
-function drawAura(ctx: CanvasRenderingContext2D, x: number, y: number, traits: UnicornTraits, t: number) {
-  const mood = traits.maneStops;
-  ctx.save();
-
-  if (traits.aura === 'Halo Ring') {
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2 + t * 0.0012;
-      ctx.fillStyle = mood[i % mood.length];
-      ctx.globalAlpha = 0.82;
-      ctx.beginPath();
-      ctx.arc(x + Math.cos(a) * 25, y + Math.sin(a) * 14 - 4, 3.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  } else if (traits.aura === 'Sparkle Trail') {
-    for (let j = 0; j < 10; j++) {
-      const phase = (t * 0.00028 + j / 10) % 1;
-      ctx.fillStyle = mood[j % mood.length];
-      ctx.globalAlpha = Math.max(0, (1 - phase) * 0.9);
-      ctx.beginPath();
-      ctx.arc(x + Math.sin(j * 12.9) * 10, y - phase * 60 - 6, 2.6 * (1 - phase * 0.5), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  } else {
-    const swing = Math.sin(t * 0.0011) * 0.5;
-    for (let k = 0; k < mood.length; k++) {
-      ctx.strokeStyle = mood[k];
-      ctx.globalAlpha = 0.72;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y + 10, 22 + k * 3, Math.PI * 1.1 + swing, Math.PI * 1.7 + swing);
-      ctx.stroke();
-    }
-  }
-
-  ctx.restore();
-}
-
 // ---------- new horse/unicorn body ----------
-function drawBody(
-  ctx: CanvasRenderingContext2D,
-  bodyX: number,
-  bodyY: number,
-  bodyRx: number,
-  bodyRy: number,
-  shades: Shades
-) {
-  // Barrel with a slightly deeper chest and lifted rump.
+function bodyPath(ctx: CanvasRenderingContext2D, bodyX: number, bodyY: number, bodyRx: number, bodyRy: number) {
   ctx.beginPath();
   ctx.moveTo(bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
   ctx.quadraticCurveTo(bodyX - bodyRx * 0.94, bodyY - bodyRy * 0.68, bodyX - bodyRx * 0.30, bodyY - bodyRy * 0.94);
@@ -569,6 +536,19 @@ function drawBody(
   ctx.quadraticCurveTo(bodyX - bodyRx * 0.52, bodyY + bodyRy * 0.88, bodyX - bodyRx * 0.91, bodyY + bodyRy * 0.48);
   ctx.quadraticCurveTo(bodyX - bodyRx * 1.02, bodyY + bodyRy * 0.25, bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
   ctx.closePath();
+}
+
+function drawBody(
+  ctx: CanvasRenderingContext2D,
+  bodyX: number,
+  bodyY: number,
+  bodyRx: number,
+  bodyRy: number,
+  shades: Shades,
+  traits: UnicornTraits
+) {
+  // Barrel with a slightly deeper chest and lifted rump.
+  bodyPath(ctx, bodyX, bodyY, bodyRx, bodyRy);
   fillStroke(ctx, shades.base, shades.outline, 5);
 
   // Chest plane.
@@ -580,6 +560,59 @@ function drawBody(
   ctx.globalAlpha = 0.22;
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  // Rainbow Nectar: a coat pattern clipped to the body barrel.
+  if (traits.pattern) {
+    ctx.save();
+    bodyPath(ctx, bodyX, bodyY, bodyRx, bodyRy);
+    ctx.clip();
+    ctx.fillStyle = traits.patternColor;
+    ctx.strokeStyle = traits.patternColor;
+    ctx.globalAlpha = 1;
+
+    if (traits.pattern === 'Stripes') {
+      ctx.lineWidth = bodyRy * 0.16;
+      for (let i = -2; i < 6; i++) {
+        ctx.beginPath();
+        ctx.moveTo(bodyX - bodyRx + i * bodyRx * 0.4, bodyY - bodyRy * 1.2);
+        ctx.lineTo(bodyX - bodyRx + i * bodyRx * 0.4 - bodyRx * 0.5, bodyY + bodyRy * 1.2);
+        ctx.stroke();
+      }
+    } else if (traits.pattern === 'Spots') {
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4;
+        const px = bodyX + Math.cos(a) * bodyRx * 0.6 * ((i % 3) * 0.4 + 0.3);
+        const py = bodyY + Math.sin(a) * bodyRy * 0.7 * ((i % 2) * 0.5 + 0.4);
+        ctx.beginPath();
+        ctx.arc(px, py, bodyRy * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      for (let i = 0; i < 7; i++) {
+        const a = i * 3.1;
+        const px = bodyX + Math.cos(a) * bodyRx * 0.65 * ((i % 3) * 0.35 + 0.3);
+        const py = bodyY + Math.sin(a) * bodyRy * 0.75 * ((i % 2) * 0.5 + 0.35);
+        const r = bodyRy * 0.16;
+        ctx.beginPath();
+        for (let k = 0; k < 5; k++) {
+          const sa = -Math.PI / 2 + (k / 5) * Math.PI * 2;
+          const ox = px + Math.cos(sa) * r;
+          const oy = py + Math.sin(sa) * r;
+          const ia = sa + Math.PI / 5;
+          const ix = px + Math.cos(ia) * r * 0.42;
+          const iy = py + Math.sin(ia) * r * 0.42;
+          if (k === 0) ctx.moveTo(ox, oy);
+          else ctx.lineTo(ox, oy);
+          ctx.lineTo(ix, iy);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
 }
 
 /**
@@ -594,7 +627,7 @@ export function drawUnicorn(
   t: number,
   reduceMotion = false
 ) {
-  const s = traits.scale;
+  const s = 1;
   const bob = reduceMotion ? 0 : Math.sin(t * 0.0018) * 2.2 * s;
   const groundY = originY;
 
@@ -621,7 +654,7 @@ export function drawUnicorn(
   horseLeg(ctx, bodyX - 18 * s, bodyY + bodyRy * 0.40, 45 * s, 42 * s, 17 * s, 0.08, traits.coat, false, -0.03);
 
   // Body barrel.
-  drawBody(ctx, bodyX, bodyY, bodyRx, bodyRy, shades);
+  drawBody(ctx, bodyX, bodyY, bodyRx, bodyRy, shades, traits);
 
   // Prominent neck drawn OVER the body. This is intentionally a separate,
   // unmistakable mass rather than an invisible line between head and torso.
@@ -665,11 +698,58 @@ export function drawUnicorn(
 
   // Horn on the forehead, projecting forward/upward.
   const hornAngle = Math.PI / 9;
-  const hornH = 34 * s;
+  const hornH = 51 * s;
   const hornX = head.hornX + 2 * s;
   const hornY = head.hornY + 2 * s;
-  const hornTipX = hornX + Math.sin(hornAngle) * hornH;
-  const hornTipY = hornY - Math.cos(hornAngle) * hornH;
-  drawAura(ctx, hornTipX, hornTipY, traits, t);
-  drawHorn(ctx, hornX, hornY, hornH, traits.hornTurns, traits.mood, hornAngle);
+  drawHorn(ctx, hornX, hornY, hornH, traits.hornPalette, hornAngle);
+
+  // Comet Shard: bright orbiting particles drawn last (on top of everything)
+  // so they're never obscured — motion reads far more clearly than a static
+  // glow would against the pastel backdrop.
+  if (traits.glowColor) {
+    const orbitCX = bodyX + 10 * s;
+    const orbitCY = bodyY - 50 * s;
+    const orbitRx = bodyRx * 1.5;
+    const orbitRy = bodyRy * 2.2;
+    const count = traits.glowCount;
+    for (let i = 0; i < count; i++) {
+      const phase = (i / count) * Math.PI * 2;
+      const a = t * 0.0016 + phase;
+      const px = orbitCX + Math.cos(a) * orbitRx;
+      const py = orbitCY + Math.sin(a) * orbitRy;
+      const r = (4 + Math.sin(t * 0.005 + phase) * 1.8) * s;
+
+      if (traits.glowShape === 'Star') {
+        ctx.strokeStyle = traits.glowColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px - r, py);
+        ctx.lineTo(px + r, py);
+        ctx.moveTo(px, py - r);
+        ctx.lineTo(px, py + r);
+        ctx.stroke();
+        ctx.strokeStyle = INK_OUTLINE;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (traits.glowShape === 'Streak') {
+        const aPrev = a - 0.35;
+        ctx.strokeStyle = traits.glowColor;
+        ctx.lineWidth = Math.max(1.5, r * 0.9);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(orbitCX + Math.cos(aPrev) * orbitRx, orbitCY + Math.sin(aPrev) * orbitRy);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+      } else {
+        ctx.fillStyle = traits.glowColor;
+        ctx.strokeStyle = INK_OUTLINE;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(1.5, r), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+  }
 }

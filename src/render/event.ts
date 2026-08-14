@@ -1,8 +1,7 @@
 // Treasure/trap room visuals — drawn where the monster sprite would otherwise
 // sit, so non-combat floors still have something to look at.
 
-const OUTLINE = '#241a38';
-const SPARKLE_COLORS = ['#ff9ecb', '#ffd28a', '#fff59e', '#9effc4', '#9ecfff', '#c39eff'];
+import { INK_OUTLINE as OUTLINE, PATTERN_COLORS as SPARKLE_COLORS } from './unicorn';
 
 function drawGroundShadow(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.fillStyle = 'rgba(20,10,10,0.18)';

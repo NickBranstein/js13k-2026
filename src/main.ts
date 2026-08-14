@@ -11,14 +11,16 @@ import {
   drawRunSummary,
   drawMutationReveal,
   drawTransformPanel,
+  wrapText,
   drawStatsPanel,
   drawLevelBadge,
   drawMuteToggle,
   maxLogScroll,
+  GOLD_TEXT,
 } from './render/ui';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
-import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
+import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE, MUTATION_ITEMS } from './game/item';
 import { mulberry32, chance } from './game/rng';
 import { animOffset, animProgress, drawImpactBurst } from './render/fx';
 import {
@@ -67,6 +69,25 @@ let eventLines: string[] = [];
 let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 let selected = 0;
+
+// Dev-only test panel for granting mutation items/potions on demand. Every
+// call site below is gated behind __DEV__ so terser fully strips this out of
+// the production build (see tools/build.mjs).
+const DEBUG_LABELS = [...MUTATION_ITEMS.map((m) => m.name), 'Rainbow Potion +1'];
+let debugOpen = false;
+let debugSelected = 0;
+
+function debugApply(index: number): void {
+  if (!player) return;
+  if (index < MUTATION_ITEMS.length) {
+    const item = MUTATION_ITEMS[index];
+    const detail = item.apply(player, traits, Math.random);
+    console.log(`[debug] ${item.name}: ${detail}`);
+  } else {
+    inventory += 1;
+    console.log('[debug] +1 Rainbow Potion');
+  }
+}
 
 // Set when a mutation item is found; consumed the next time the player would
 // otherwise advance a floor, showing the reveal screen (then the transform
@@ -407,6 +428,22 @@ function confirmSelection(): void {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (__DEV__ && e.key === '`' && state !== 'Title') {
+    debugOpen = !debugOpen;
+    return;
+  }
+  if (__DEV__ && debugOpen) {
+    if (e.key === 'ArrowUp' || e.key === 'w') {
+      debugSelected = (debugSelected + DEBUG_LABELS.length - 1) % DEBUG_LABELS.length;
+    } else if (e.key === 'ArrowDown' || e.key === 's') {
+      debugSelected = (debugSelected + 1) % DEBUG_LABELS.length;
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      debugApply(debugSelected);
+    } else if (e.key === 'Escape') {
+      debugOpen = false;
+    }
+    return;
+  }
   if (e.key === 'm' || e.key === 'M') {
     toggleMute();
     return;
@@ -577,23 +614,28 @@ function render(): void {
     if (autoFollowLog) logScroll = maxLogScroll(currentLog.length, LOG_H);
     drawLog(context, LOG_X, LOG_Y, LOG_W, LOG_H, currentLog, logScroll);
 
+    const modalCenterY = canvas.height / 2;
+
     if (state === 'MutationReveal' && pendingMutationReveal) {
       context.fillStyle = 'rgba(10,6,18,0.45)';
       context.fillRect(0, 0, canvas.width, canvas.height);
-      drawMutationReveal(context, canvas.width / 2, canvas.height * 0.42, 560, 300, pendingMutationReveal.name, pendingMutationReveal.detail, t);
-    } else if (state === 'MutationTransform' && pendingMutationBefore) {
+      drawMutationReveal(context, canvas.width / 2, modalCenterY, 680, 380, pendingMutationReveal.name, pendingMutationReveal.detail, t);
+    } else if (state === 'MutationTransform' && pendingMutationBefore && pendingMutationReveal) {
       const progress = transformStart === null ? 1 : Math.min(1, (t - transformStart) / TRANSFORM_DURATION);
       const tcx = canvas.width / 2;
-      const tcy = canvas.height * 0.4;
-      const tw = 700;
-      const th = 340;
+      const tcy = modalCenterY;
+      const tw = 820;
+      const th = 520;
 
       context.fillStyle = 'rgba(10,6,18,0.45)';
       context.fillRect(0, 0, canvas.width, canvas.height);
       drawTransformPanel(context, tcx, tcy, tw, th, t);
 
-      const spriteScale = uiScale * 0.55;
-      const spriteY = tcy + th * 0.08;
+      // Unicorn geometry stands with feet at the translate origin and its
+      // head/horn extending roughly 300 units upward and negligibly below
+      // it — read from drawUnicorn's own coordinate math, not guessed.
+      const spriteScale = uiScale * 0.68;
+      const spriteY = tcy + 105;
       const leftX = tcx - tw * 0.27;
       const rightX = tcx + tw * 0.27;
 
@@ -612,34 +654,37 @@ function render(): void {
       context.restore();
 
       context.textAlign = 'center';
-      context.fillStyle = '#4a2f1f';
+      context.fillStyle = GOLD_TEXT;
       context.textBaseline = 'middle';
       context.font = '700 42px sans-serif';
-      context.fillText('→', tcx, spriteY - th * 0.12);
+      context.fillText('→', tcx, spriteY - 135);
 
       context.textBaseline = 'top';
       context.font = '700 20px sans-serif';
-      context.fillText('✨ Transformation ✨', tcx, tcy - th / 2 + 22);
+      context.fillText(`✨ ${pendingMutationReveal.name} ✨`, tcx, tcy - th / 2 + 20);
 
-      if (progress >= 1) {
-        context.font = '600 18px sans-serif';
-        context.fillText('Transformation complete!', tcx, tcy + th / 2 - 96);
-      }
+      context.font = '600 15px sans-serif';
+      const transformLines = wrapText(context, pendingMutationReveal.detail, tw - 100);
+      transformLines.forEach((line, i) => context.fillText(line, tcx, tcy - th / 2 + 52 + i * 22));
       context.textAlign = 'left';
       context.textBaseline = 'alphabetic';
     }
 
     const menuOptions = currentMenuOptions();
     if (state === 'MutationReveal') {
-      drawMenu(context, canvas.width / 2 - 142, canvas.height * 0.42 + 300 / 2 - 66, 284, 56, menuOptions, selected);
+      drawMenu(context, canvas.width / 2 - 90, modalCenterY + 380 / 2 - 66, 180, 48, menuOptions, selected, true);
     } else if (state === 'MutationTransform') {
       if (menuOptions.length > 0) {
-        drawMenu(context, canvas.width / 2 - 90, canvas.height * 0.4 + 340 / 2 - 66, 180, 48, menuOptions, selected, true);
+        drawMenu(context, canvas.width / 2 - 90, modalCenterY + 520 / 2 - 66, 180, 48, menuOptions, selected, true);
       }
     } else {
       drawMenu(context, canvas.width - 340, canvas.height - 200, 284, 150, menuOptions, selected);
     }
     drawFadeOverlay(t);
+
+    if (__DEV__ && debugOpen) {
+      drawMenu(context, canvas.width - 260, 60, 240, DEBUG_LABELS.length * 34, DEBUG_LABELS, debugSelected);
+    }
 }
 
 function loop(): void {
