@@ -155,17 +155,15 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
     ctx.fill();
     ctx.stroke();
   } else {
-    // Stag: branching antlers
+    // Stag: branching antlers (main beam + one fork per side)
     ctx.lineWidth = 4;
     ctx.strokeStyle = palette.dark;
     [bodyR * 0.75, bodyR * 1.0].forEach((ax) => {
       ctx.beginPath();
       ctx.moveTo(ax, -bodyR * 0.5);
       ctx.lineTo(ax - bodyR * 0.05, -bodyR * 0.95);
-      ctx.moveTo(ax - bodyR * 0.03, -bodyR * 0.75);
-      ctx.lineTo(ax - bodyR * 0.22, -bodyR * 0.85);
-      ctx.moveTo(ax - bodyR * 0.03, -bodyR * 0.85);
-      ctx.lineTo(ax + bodyR * 0.14, -bodyR * 0.95);
+      ctx.moveTo(ax - bodyR * 0.03, -bodyR * 0.8);
+      ctx.lineTo(ax - bodyR * 0.2, -bodyR * 0.9);
       ctx.stroke();
     });
     ctx.strokeStyle = OUTLINE;
@@ -211,123 +209,6 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
   drawQuadrupedHeadAccessory(ctx, bodyR, suffix, traits.palette);
 
   drawEyes(ctx, bodyR * 0.95, -bodyR * 0.3, bodyR * 0.12, bodyR * 0.06);
-  ctx.restore();
-}
-
-function serpentBodyPoint(u: number, len: number, wiggle: number): { x: number; y: number } {
-  const p0x = -len * 0.45, p0y = len * 0.2;
-  const p1x = len * 0.05, p1y = len * 0.16 + wiggle * 0.6;
-  const p2x = len * 0.45, p2y = len * 0.12;
-  const mt = 1 - u;
-  return {
-    x: mt * mt * p0x + 2 * mt * u * p1x + u * u * p2x,
-    y: mt * mt * p0y + 2 * mt * u * p1y + u * u * p2y,
-  };
-}
-
-function drawSerpentScales(ctx: CanvasRenderingContext2D, len: number, wiggle: number, suffix: string, palette: MonsterTraits['palette']): void {
-  const count = 7;
-  for (let i = 1; i < count; i++) {
-    const u = i / count;
-    const p = serpentBodyPoint(u, len, wiggle);
-
-    if (suffix === 'Adder') {
-      // banded stripe segments across the body
-      ctx.fillStyle = i % 2 === 0 ? palette.dark : palette.light;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y - len * 0.06, len * 0.05, len * 0.1, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (suffix === 'Wyrm') {
-      // ridged spine bumps
-      ctx.fillStyle = palette.dark;
-      ctx.strokeStyle = OUTLINE;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(p.x - len * 0.03, p.y - len * 0.08);
-      ctx.lineTo(p.x, p.y - len * 0.18);
-      ctx.lineTo(p.x + len * 0.03, p.y - len * 0.08);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      // Viper (and default): small diamond scale texture along the spine
-      ctx.fillStyle = palette.dark;
-      ctx.strokeStyle = OUTLINE;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y - len * 0.05, len * 0.035, len * 0.05, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-}
-
-function drawSerpent(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number): void {
-  const s = traits.scale;
-  const bob = Math.sin(t / 500) * 3 * s;
-  const len = 90 * s;
-  const suffix = traits.nameSuffix;
-
-  drawGroundShadow(ctx, len * 0.5);
-
-  ctx.save();
-  ctx.translate(0, bob);
-
-  const wiggle = Math.sin(t / 300) * 14 * s;
-
-  ctx.beginPath();
-  ctx.moveTo(-len * 0.55, len * 0.12);
-  ctx.quadraticCurveTo(-len * 0.15, -len * 0.28 + wiggle, len * 0.35, -len * 0.05);
-  ctx.quadraticCurveTo(len * 0.55, 0.02 * len, len * 0.6, 0.05 * len);
-  ctx.lineTo(len * 0.52, len * 0.22);
-  ctx.quadraticCurveTo(len * 0.1, len * 0.12 + wiggle * 0.6, -len * 0.35, len * 0.32);
-  ctx.quadraticCurveTo(-len * 0.55, len * 0.32, -len * 0.55, len * 0.12);
-  ctx.closePath();
-  fillStroke(ctx, traits.palette.base);
-
-  // belly stripe
-  ctx.beginPath();
-  ctx.moveTo(-len * 0.45, len * 0.2);
-  ctx.quadraticCurveTo(len * 0.05, len * 0.16 + wiggle * 0.6, len * 0.45, len * 0.12);
-  ctx.strokeStyle = traits.palette.light;
-  ctx.lineWidth = 4 * s;
-  ctx.stroke();
-
-  drawSerpentScales(ctx, len, wiggle, suffix, traits.palette);
-
-  // head
-  ctx.beginPath();
-  if (suffix === 'Wyrm') {
-    // broader head, plus small wing-like fins
-    ctx.ellipse(len * 0.48, -len * 0.03, len * 0.2, len * 0.15, -0.2, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.light);
-    ctx.beginPath();
-    ctx.moveTo(len * 0.4, -len * 0.1);
-    ctx.lineTo(len * 0.28, -len * 0.26);
-    ctx.lineTo(len * 0.46, -len * 0.16);
-    ctx.closePath();
-    fillStroke(ctx, traits.palette.dark);
-  } else if (suffix === 'Viper') {
-    // triangular head + fangs
-    ctx.moveTo(len * 0.34, -len * 0.12);
-    ctx.lineTo(len * 0.62, -len * 0.02);
-    ctx.lineTo(len * 0.34, len * 0.08);
-    ctx.closePath();
-    fillStroke(ctx, traits.palette.light);
-    ctx.fillStyle = TEXT_COLOR;
-    ctx.beginPath();
-    ctx.moveTo(len * 0.5, len * 0.02);
-    ctx.lineTo(len * 0.54, len * 0.11);
-    ctx.lineTo(len * 0.46, len * 0.05);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  } else {
-    ctx.ellipse(len * 0.48, -len * 0.03, len * 0.16, len * 0.13, -0.2, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.light);
-  }
-
-  drawEyes(ctx, len * 0.5, -len * 0.06, len * 0.06, len * 0.03);
   ctx.restore();
 }
 
@@ -889,9 +770,6 @@ export function drawMonster(
       break;
     case 'Quadruped':
       drawQuadruped(ctx, traits, t);
-      break;
-    case 'Serpent':
-      drawSerpent(ctx, traits, t);
       break;
     case 'Avian':
       drawAvian(ctx, traits, t);

@@ -180,6 +180,32 @@ function currentMenuOptions(): string[] {
   return ['Proceed'];
 }
 
+// Geometry for the currently active command-bar menu — shared by rendering
+// (so drawMenu is called with these exact numbers) and click/tap
+// hit-testing, so taps land exactly where the drawn rows are.
+interface MenuRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  centered: boolean;
+}
+
+function menuBounds(): MenuRect | null {
+  const modalCenterY = canvas.height / 2;
+  if (state === 'Title') {
+    return { x: canvas.width / 2 - 68, y: canvas.height - 140, w: 136, h: 48, centered: true };
+  }
+  if (state === 'MutationReveal') {
+    return { x: canvas.width / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
+  }
+  if (state === 'MutationTransform') {
+    if (currentMenuOptions().length === 0) return null;
+    return { x: canvas.width / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
+  }
+  return { x: canvas.width - 340, y: canvas.height - 200, w: 284, h: 150, centered: false };
+}
+
 // stats panel sits to the left of the combat log, both aligned to the same
 // row so neither overlaps the player sprite above them
 const STATS_PANEL_X = 16;
@@ -465,13 +491,22 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// Maps a mouse/touch event's client coordinates onto canvas-space pixels,
+// accounting for the CSS-scaled display size (canvas.width/height are the
+// fixed internal resolution, not the on-screen size).
+function canvasPoint(e: MouseEvent): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
 canvas.addEventListener(
   'wheel',
   (e) => {
     if (state === 'Title') return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const { x: mx, y: my } = canvasPoint(e);
     if (mx < LOG_X || mx > LOG_X + LOG_W || my < LOG_Y || my > LOG_Y + LOG_H) return;
 
     e.preventDefault();
@@ -482,6 +517,28 @@ canvas.addEventListener(
   },
   { passive: false }
 );
+
+// Click/tap support for the command-bar menu. A single tap both selects and
+// confirms the tapped row — mobile browsers synthesize a 'click' from a
+// tap, so this doubles as touch support with no separate touch handlers.
+// The audio engine lazily unlocks on first sound played from a user
+// gesture, and click qualifies just like keydown does.
+canvas.addEventListener('click', (e) => {
+  if (fadePhase !== 'none') return;
+  const mb = menuBounds();
+  if (!mb) return;
+  const options = currentMenuOptions();
+  if (options.length === 0) return;
+
+  const { x: mx, y: my } = canvasPoint(e);
+  if (mx < mb.x || mx > mb.x + mb.w || my < mb.y || my > mb.y + mb.h) return;
+
+  const rowH = mb.h / options.length;
+  const row = Math.min(options.length - 1, Math.floor((my - mb.y) / rowH));
+  selected = row;
+  playConfirm();
+  confirmSelection();
+});
 
 function drawFadeOverlay(t: number): void {
   if (fadePhase === 'none') return;
@@ -527,7 +584,8 @@ function render(): void {
       context.restore();
 
       drawTitleCard(context, 48, 40, GAME_TITLE, GAME_SUBTITLE, t);
-      drawMenu(context, canvas.width / 2 - 68, canvas.height - 140, 136, 48, currentMenuOptions(), selected, true);
+      const titleMenu = menuBounds()!;
+      drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
       return;
     }
@@ -671,14 +729,9 @@ function render(): void {
     }
 
     const menuOptions = currentMenuOptions();
-    if (state === 'MutationReveal') {
-      drawMenu(context, canvas.width / 2 - 90, modalCenterY + 380 / 2 - 66, 180, 48, menuOptions, selected, true);
-    } else if (state === 'MutationTransform') {
-      if (menuOptions.length > 0) {
-        drawMenu(context, canvas.width / 2 - 90, modalCenterY + 520 / 2 - 66, 180, 48, menuOptions, selected, true);
-      }
-    } else {
-      drawMenu(context, canvas.width - 340, canvas.height - 200, 284, 150, menuOptions, selected);
+    const mb = menuBounds();
+    if (mb) {
+      drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered);
     }
     drawFadeOverlay(t);
 

@@ -6,7 +6,6 @@ import { mulberry32, pick, range, rangeInt } from './rng';
 export type Archetype =
   | 'Blob'
   | 'Quadruped'
-  | 'Serpent'
   | 'Avian'
   | 'Arachnid'
   | 'Crystal'
@@ -40,7 +39,6 @@ export interface MonsterTraits {
 const ARCHETYPES: Archetype[] = [
   'Blob',
   'Quadruped',
-  'Serpent',
   'Avian',
   'Arachnid',
   'Crystal',
@@ -53,7 +51,6 @@ const ARCHETYPES: Archetype[] = [
 const NAME_PREFIXES: Record<Archetype, string[]> = {
   Blob: ['Shade', 'Murk', 'Gloom', 'Sludge'],
   Quadruped: ['Bramble', 'Ash', 'Iron', 'Storm'],
-  Serpent: ['Venom', 'Coil', 'Fang', 'Ember'],
   Avian: ['Feather', 'Sky', 'Crow', 'Gale'],
   Arachnid: ['Web', 'Cave', 'Widow', 'Dust'],
   Crystal: ['Prism', 'Quartz', 'Geode', 'Shard'],
@@ -66,7 +63,6 @@ const NAME_PREFIXES: Record<Archetype, string[]> = {
 const NAME_SUFFIXES: Record<Archetype, string[]> = {
   Blob: ['Blob', 'Ooze', 'Glob'],
   Quadruped: ['Hound', 'Boar', 'Stag'],
-  Serpent: ['Viper', 'Wyrm', 'Adder'],
   Avian: ['Roc', 'Harpy', 'Jay'],
   Arachnid: ['Spinner', 'Crawler', 'Weaver'],
   Crystal: ['Golem', 'Sentinel', 'Warden'],
@@ -88,10 +84,6 @@ const PALETTE_BY_PREFIX: Record<string, MonsterPalette> = {
   Ash: { base: '#7a7a7a', light: '#a3a3a3', dark: '#525252' },
   Iron: { base: '#5c6670', light: '#8a97a3', dark: '#3d444d' },
   Storm: { base: '#4f6f8c', light: '#72a0c2', dark: '#354d66' },
-  Venom: { base: '#4f7d3f', light: '#7aab5c', dark: '#355228' },
-  Coil: { base: '#5c3f7d', light: '#8560ab', dark: '#3d2952' },
-  Fang: { base: '#8c4f4f', light: '#c27272', dark: '#663535' },
-  Ember: { base: '#8c5f2f', light: '#c28a4f', dark: '#66431f' },
   Feather: { base: '#5c8ac2', light: '#8ab0d9', dark: '#3d5c85' },
   Sky: { base: '#6fa3d9', light: '#9cc4e8', dark: '#4a7099' },
   Crow: { base: '#3a3a42', light: '#5c5c66', dark: '#26262c' },
@@ -125,7 +117,6 @@ const PALETTE_BY_PREFIX: Record<string, MonsterPalette> = {
 const MOVE_POOL: Record<Archetype, string[]> = {
   Blob: ['Ooze Slam', 'Corrosive Spit', 'Body Press'],
   Quadruped: ['Bite', 'Charge', 'Claw Swipe'],
-  Serpent: ['Venom Strike', 'Constrict', 'Tail Whip'],
   Avian: ['Wing Slash', 'Dive Peck', 'Screech'],
   Arachnid: ['Venom Bite', 'Web Snare', 'Skitter Strike'],
   Crystal: ['Shard Slam', 'Prism Beam', 'Stone Guard'],
@@ -139,7 +130,6 @@ const MOVE_POOL: Record<Archetype, string[]> = {
 const BASE_STATS: Record<Archetype, { hp: number; atk: number; def: number }> = {
   Blob: { hp: 46, atk: 8, def: 9 },
   Quadruped: { hp: 38, atk: 11, def: 6 },
-  Serpent: { hp: 32, atk: 13, def: 4 },
   Avian: { hp: 30, atk: 11, def: 4 },
   Arachnid: { hp: 26, atk: 12, def: 5 },
   Crystal: { hp: 52, atk: 9, def: 14 },
