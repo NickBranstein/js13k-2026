@@ -3,6 +3,8 @@
 A procedural unicorn dungeon crawl, built for [js13kGames 2026](https://js13kgames.com/)
 — theme "unicorns and rainbows" — under the 13,312-byte (zipped) budget.
 
+**[▶ Try it](https://nickbranstein.github.io/js13k-2026/)**
+
 Descend a linear sequence of dungeon floors as a procedurally generated unicorn,
 fighting turn-based, menu-driven battles against procedurally generated monsters
 (10 archetypes, each with its own suffix-driven silhouette variants). Everything
