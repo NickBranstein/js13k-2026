@@ -87,9 +87,25 @@ export function playerUseItem(state: BattleState): void {
   enemyTurn(state);
 }
 
+// An enemy below this HP fraction is "vulnerable" — worn down enough to be
+// easier to charm, so soften-then-charm is a real alternative to attacking
+// straight to zero rather than charm being an any-time coin-flip. The odds
+// themselves stay hidden from the player (see isVulnerable, used for a UI
+// glow + flavor line instead of a number) — an intuition, not a spreadsheet.
+const CHARM_VULNERABLE_HP_PCT = 0.4;
+const CHARM_VULNERABLE_BONUS = 15;
+
+export function isVulnerable(enemy: Combatant): boolean {
+  return enemy.hp <= enemy.maxHp * CHARM_VULNERABLE_HP_PCT;
+}
+
+export function charmChance(player: Combatant, enemy: Combatant): number {
+  return Math.min(90, player.charisma + (isVulnerable(enemy) ? CHARM_VULNERABLE_BONUS : 0));
+}
+
 export function playerCharm(state: BattleState): void {
   if (state.phase !== 'PlayerTurn') return;
-  const success = chance(state.rng, state.player.charisma * 0.01);
+  const success = chance(state.rng, charmChance(state.player, state.enemy) * 0.01);
   if (success) {
     state.phase = 'Charmed';
     logLine(state, `${state.enemy.name} is charmed and befriended!`);

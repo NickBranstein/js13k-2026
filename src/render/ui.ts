@@ -506,7 +506,9 @@ export function drawMenu(
   h: number,
   options: string[],
   selected: number,
-  centered = false
+  centered = false,
+  glowIndex = -1,
+  t = 0
 ): void {
   drawPanelBg(ctx, x, y, w, h);
 
@@ -521,7 +523,14 @@ export function drawMenu(
     const prefixW = ctx.measureText('> ').width;
     const labelW = ctx.measureText(label).width;
     const textX = centered ? x + w / 2 - (prefixW + labelW) / 2 : x + 20;
+
+    if (i === glowIndex) {
+      const pulse = 0.5 + Math.sin(t / 200) * 0.5;
+      ctx.shadowColor = `rgba(255,209,102,${0.6 + pulse * 0.4})`;
+      ctx.shadowBlur = 12 + pulse * 10;
+    }
     ctx.fillText(text, textX, textY);
+    ctx.shadowBlur = 0;
 
     if (i === selected) {
       ctx.strokeStyle = SELECT_GOLD;
@@ -546,6 +555,31 @@ export function maxLogScroll(totalLines: number, h: number): number {
   return Math.max(0, totalLines - logVisibleLines(h));
 }
 
+// Letters sit at normal size; a single narrow pulse sweeps left to right
+// once per loop (only the letters near the pulse grow larger, then settle
+// back as it passes) — used for the one-off "charm vulnerable" log line so
+// it reads as a special moment rather than a normal combat message.
+const GROW_MS_PER_CHAR = 45;
+const GROW_PAUSE_MS = 400;
+
+function drawGrowLine(ctx: CanvasRenderingContext2D, line: string, x: number, y: number, animStart: number, t: number): void {
+  let cx = x;
+  const cycle = line.length * GROW_MS_PER_CHAR + GROW_PAUSE_MS;
+  const local = ((t - animStart) % cycle + cycle) % cycle;
+  const pulsePos = local / GROW_MS_PER_CHAR;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    const chW = ctx.measureText(ch).width;
+    const scale = 1 + Math.max(0, 1 - Math.abs(i - pulsePos) / 6) * 0.4;
+    ctx.save();
+    ctx.translate(cx + chW / 2, y + 7);
+    ctx.scale(scale, scale);
+    ctx.fillText(ch, -chW / 2, -7);
+    ctx.restore();
+    cx += chW;
+  }
+}
+
 export function drawLog(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -553,7 +587,10 @@ export function drawLog(
   w: number,
   h: number,
   lines: string[],
-  scroll: number
+  scroll: number,
+  growIndex = -1,
+  growStart = 0,
+  t = 0
 ): void {
   drawPanelBg(ctx, x, y, w, h);
 
@@ -569,11 +606,17 @@ export function drawLog(
   panelPath(ctx, x, y, w, h);
   ctx.clip();
 
-  ctx.fillStyle = TEXT_COLOR;
   ctx.font = '14px sans-serif';
   ctx.textBaseline = 'top';
   shown.forEach((line, i) => {
-    ctx.fillText(line, x + 16, y + LOG_PADDING + i * LOG_LINE_HEIGHT, textW);
+    const lineY = y + LOG_PADDING + i * LOG_LINE_HEIGHT;
+    if (clampedScroll + i === growIndex) {
+      ctx.fillStyle = SELECT_GOLD;
+      drawGrowLine(ctx, line, x + 16, lineY, growStart, t);
+    } else {
+      ctx.fillStyle = TEXT_COLOR;
+      ctx.fillText(line, x + 16, lineY, textW);
+    }
   });
   ctx.restore();
 

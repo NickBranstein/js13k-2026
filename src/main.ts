@@ -45,6 +45,7 @@ import {
   playerAttack,
   playerUseItem,
   playerCharm,
+  isVulnerable,
   isBattleOver,
   type Combatant,
   type BattleState,
@@ -241,11 +242,22 @@ function resetCombatAnims(): void {
   enemyHitAnimStart = null;
 }
 
+// Shown once per battle, the moment the enemy first crosses into "vulnerable"
+// (see isVulnerable in game/battle.ts) — a flavor cue for the Charm glow
+// rather than a number, so the player still has to notice and act on it.
+// vulnerableMessageLogIndex/AnimStart drive drawLog's letter-grow-in effect
+// on that specific line.
+let vulnerableMessageShown = false;
+let vulnerableMessageLogIndex = -1;
+let vulnerableMessageAnimStart = 0;
+
 function enterFloor(): void {
   encounter = generateFloorEncounter(runSeed, floor);
   selected = 0;
   eventChoiceMade = false;
   battleRewardsGranted = false;
+  vulnerableMessageShown = false;
+  vulnerableMessageLogIndex = -1;
   resetLogScroll();
   resetCombatAnims();
 
@@ -429,6 +441,13 @@ function confirmSelection(): void {
       playerUseItem(battle);
     } else if (choice === 'Charm') playerCharm(battle);
 
+    if (!vulnerableMessageShown && battle.enemy.hp > 0 && isVulnerable(battle.enemy)) {
+      vulnerableMessageShown = true;
+      vulnerableMessageLogIndex = battle.log.length;
+      vulnerableMessageAnimStart = performance.now();
+      battle.log.push(`${battle.enemy.name} finds your charisma hard to resist...`);
+    }
+
     triggerCombatAnims(enemyHpBefore, playerHpBefore, wasAttack);
     maybeGrantBattleRewards();
     if (isBattleOver(battle)) selected = 0;
@@ -557,7 +576,7 @@ const HOW_TO_LINES = [
   'Arrows / WASD - move selection',
   'Enter / Space / Tap - confirm',
   'M - mute',
-  'Charm - small chance to win a fight without battling',
+  'Charm - chance to befriend; better odds on a weakened foe',
   'Potion - heals HP in battle',
   'Esc / Tap Any - close this panel',
 ];
@@ -731,7 +750,18 @@ function render(): void {
 
     const currentLog = state === 'Battle' && battle ? battle.log : state === 'Event' ? eventLines : gameOverLines;
     if (autoFollowLog) logScroll = maxLogScroll(currentLog.length, LOG_H);
-    drawLog(context, LOG_X, LOG_Y, LOG_W, LOG_H, currentLog, logScroll);
+    drawLog(
+      context,
+      LOG_X,
+      LOG_Y,
+      LOG_W,
+      LOG_H,
+      currentLog,
+      logScroll,
+      state === 'Battle' ? vulnerableMessageLogIndex : -1,
+      vulnerableMessageAnimStart,
+      t
+    );
 
     const modalCenterY = canvas.height / 2;
 
@@ -792,7 +822,11 @@ function render(): void {
     const menuOptions = currentMenuOptions();
     const mb = menuBounds();
     if (mb) {
-      drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered);
+      const charmGlow =
+        state === 'Battle' && battle && !isBattleOver(battle) && isVulnerable(battle.enemy)
+          ? menuOptions.indexOf('Charm')
+          : -1;
+      drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);
     }
     drawFadeOverlay(t);
     drawHowTo();
