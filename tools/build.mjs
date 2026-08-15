@@ -15,6 +15,27 @@ import path from 'node:path';
 // our own object properties without touching Canvas/DOM/Array/Math etc.
 import { domprops } from '../node_modules/terser/tools/domprops.js';
 
+// LifetimeStats (game/stats.ts) is persisted to localStorage as
+// JSON.stringify() of a plain object, so its property names ARE the save
+// schema. Terser's property mangler assigns short names by AST traversal
+// order, not by content — any unrelated code change earlier in the bundle
+// (e.g. adding a field to a completely different interface) can shift which
+// short name each of these gets from one build to the next, which would
+// silently break `{ ...EMPTY, ...JSON.parse(raw) }` in loadLifetimeStats()
+// for anyone who already has old save data: the spread just fails to match
+// and quietly resets their stats to zero, no error. Reserving these pins
+// the on-disk schema across every future build regardless of unrelated
+// changes elsewhere. (Verified via an isolated build-then-perturb-then-
+// rebuild test that these names do shift — this isn't a hypothetical risk.)
+const PERSISTED_KEYS = [
+  'bestFloor',
+  'monstersDefeated',
+  'bossesDefeated',
+  'treasuresFound',
+  'trapsFound',
+  'rainbowFruitsFound',
+];
+
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -77,7 +98,7 @@ async function terserPass(code) {
     mangle: {
       toplevel: true,
       properties: {
-        reserved: domprops,
+        reserved: [...domprops, ...PERSISTED_KEYS],
       },
     },
     format: { comments: false },
