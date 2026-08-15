@@ -406,6 +406,7 @@ function confirmSelection(): void {
           gameOverLines = [...battle!.log, `Fell on Floor ${floor}.`];
           lifetimeStats = recordRun(lifetimeStats, {
             floor,
+            level: progression.level,
             monstersDefeated,
             bossesDefeated,
             treasuresFound,

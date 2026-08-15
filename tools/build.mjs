@@ -29,6 +29,7 @@ import { domprops } from '../node_modules/terser/tools/domprops.js';
 // rebuild test that these names do shift — this isn't a hypothetical risk.)
 const PERSISTED_KEYS = [
   'bestFloor',
+  'bestLevel',
   'monstersDefeated',
   'bossesDefeated',
   'treasuresFound',

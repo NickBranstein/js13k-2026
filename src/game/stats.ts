@@ -6,6 +6,7 @@
 
 export interface LifetimeStats {
   bestFloor: number;
+  bestLevel: number;
   monstersDefeated: number;
   bossesDefeated: number;
   treasuresFound: number;
@@ -17,6 +18,7 @@ const KEY = 'rainbowDepths-stats';
 
 const EMPTY: LifetimeStats = {
   bestFloor: 0,
+  bestLevel: 0,
   monstersDefeated: 0,
   bossesDefeated: 0,
   treasuresFound: 0,
@@ -35,9 +37,13 @@ export function loadLifetimeStats(): LifetimeStats {
 
 // Folds one finished run's counters into the lifetime totals and persists
 // the result. Called once, when a run ends.
-export function recordRun(prev: LifetimeStats, run: Omit<LifetimeStats, 'bestFloor'> & { floor: number }): LifetimeStats {
+export function recordRun(
+  prev: LifetimeStats,
+  run: Omit<LifetimeStats, 'bestFloor' | 'bestLevel'> & { floor: number; level: number }
+): LifetimeStats {
   const next: LifetimeStats = {
     bestFloor: Math.max(prev.bestFloor, run.floor),
+    bestLevel: Math.max(prev.bestLevel, run.level),
     monstersDefeated: prev.monstersDefeated + run.monstersDefeated,
     bossesDefeated: prev.bossesDefeated + run.bossesDefeated,
     treasuresFound: prev.treasuresFound + run.treasuresFound,

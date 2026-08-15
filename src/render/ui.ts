@@ -468,9 +468,9 @@ export function drawRunSummary(
   ctx.fillText('This Run', colRunX, y + 62);
   ctx.fillText('Lifetime', colLifeX, y + 62);
 
-  const rows: [string, number, number | null][] = [
+  const rows: [string, number, number][] = [
     ['Floor Reached', stats.floorReached, lifetime.bestFloor],
-    ['Level', stats.level, null],
+    ['Level', stats.level, lifetime.bestLevel],
     ['Monsters Defeated', stats.monstersDefeated, lifetime.monstersDefeated],
     ['Bosses Defeated', stats.bossesDefeated, lifetime.bossesDefeated],
     ['Treasures Found', stats.treasuresFound, lifetime.treasuresFound],
@@ -491,7 +491,7 @@ export function drawRunSummary(
     ctx.font = '700 16px sans-serif';
     ctx.fillText(String(val), colRunX, rowY);
     ctx.font = '600 16px sans-serif';
-    ctx.fillText(lifeVal === null ? '—' : String(lifeVal), colLifeX, rowY);
+    ctx.fillText(String(lifeVal), colLifeX, rowY);
   });
 
   ctx.textAlign = 'left';
