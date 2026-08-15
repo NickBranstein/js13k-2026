@@ -2,6 +2,7 @@
 // panels to match the "unicorns and rainbows" theme rather than flat boxes.
 
 import type { Combatant } from '../game/battle';
+import type { LifetimeStats } from '../game/stats';
 import { PATTERN_COLORS as TITLE_SPARKLE_COLORS, INK_OUTLINE, TEXT_COLOR, GOLD_TEXT, PANEL_BORDER } from './shared';
 
 const SELECT_GOLD = '#ffd166';
@@ -447,6 +448,7 @@ export function drawRunSummary(
   w: number,
   h: number,
   stats: RunStats,
+  lifetime: LifetimeStats,
   t: number
 ): void {
   drawGoldPanel(ctx, centerX, centerY, w, h, t);
@@ -459,28 +461,37 @@ export function drawRunSummary(
   ctx.textBaseline = 'top';
   ctx.fillText('Run Over', centerX, y + 22);
 
-  const rows: [string, number][] = [
-    ['Floor Reached', stats.floorReached],
-    ['Level', stats.level],
-    ['Monsters Defeated', stats.monstersDefeated],
-    ['Bosses Defeated', stats.bossesDefeated],
-    ['Treasures Found', stats.treasuresFound],
-    ['Traps Found', stats.trapsFound],
-    ['Rainbow Fruits Found', stats.rainbowFruitsFound],
+  const colRunX = x + w - 150;
+  const colLifeX = x + w - 40;
+  ctx.font = '700 13px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('This Run', colRunX, y + 62);
+  ctx.fillText('Lifetime', colLifeX, y + 62);
+
+  const rows: [string, number, number | null][] = [
+    ['Floor Reached', stats.floorReached, lifetime.bestFloor],
+    ['Level', stats.level, null],
+    ['Monsters Defeated', stats.monstersDefeated, lifetime.monstersDefeated],
+    ['Bosses Defeated', stats.bossesDefeated, lifetime.bossesDefeated],
+    ['Treasures Found', stats.treasuresFound, lifetime.treasuresFound],
+    ['Traps Found', stats.trapsFound, lifetime.trapsFound],
+    ['Rainbow Fruits Found', stats.rainbowFruitsFound, lifetime.rainbowFruitsFound],
   ];
 
   const rowH = 34;
-  const startY = y + 82;
-  ctx.font = '600 18px sans-serif';
-  rows.forEach(([label, val], i) => {
+  const startY = y + 90;
+  ctx.font = '600 16px sans-serif';
+  rows.forEach(([label, val, lifeVal], i) => {
     const rowY = startY + i * rowH;
     ctx.textAlign = 'left';
     ctx.fillStyle = GOLD_TEXT;
-    ctx.fillText(label, x + 40, rowY);
+    ctx.fillText(label, x + 30, rowY);
+
     ctx.textAlign = 'right';
-    ctx.font = '700 18px sans-serif';
-    ctx.fillText(String(val), x + w - 40, rowY);
-    ctx.font = '600 18px sans-serif';
+    ctx.font = '700 16px sans-serif';
+    ctx.fillText(String(val), colRunX, rowY);
+    ctx.font = '600 16px sans-serif';
+    ctx.fillText(lifeVal === null ? '—' : String(lifeVal), colLifeX, rowY);
   });
 
   ctx.textAlign = 'left';

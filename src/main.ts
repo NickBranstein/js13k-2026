@@ -1,5 +1,6 @@
 import { generateUnicornTraits, drawUnicorn, type UnicornTraits } from './render/unicorn';
 import { generateMonsterTraits, type MonsterTraits } from './game/monster';
+import { loadLifetimeStats, recordRun, type LifetimeStats } from './game/stats';
 import { drawMonster } from './render/monster';
 import { drawTreasureChest, drawTrapFloor } from './render/event';
 import {
@@ -72,6 +73,7 @@ let eventLines: string[] = [];
 let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 let selected = 0;
+let lifetimeStats: LifetimeStats = loadLifetimeStats();
 let howToOpen = false;
 
 // Set when a mutation item is found; consumed the next time the player would
@@ -401,6 +403,14 @@ function confirmSelection(): void {
         stopAmbient();
         transitionTo(() => {
           gameOverLines = [...battle!.log, `Fell on Floor ${floor}.`];
+          lifetimeStats = recordRun(lifetimeStats, {
+            floor,
+            monstersDefeated,
+            bossesDefeated,
+            treasuresFound,
+            trapsFound,
+            rainbowFruitsFound,
+          });
           state = 'GameOver';
           selected = 0;
         });
@@ -625,6 +635,13 @@ function render(): void {
       context.restore();
 
       drawTitleCard(context, 48, 40, GAME_TITLE, GAME_SUBTITLE, t);
+      if (lifetimeStats.bestFloor > 0) {
+        context.font = '700 18px sans-serif';
+        context.fillStyle = GOLD_TEXT;
+        context.textAlign = 'right';
+        context.fillText(`🏆 Best Floor: ${lifetimeStats.bestFloor}`, canvas.width - 48, canvas.height - 48);
+        context.textAlign = 'left';
+      }
       const titleMenu = menuBounds()!;
       drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
@@ -673,8 +690,8 @@ function render(): void {
         context,
         canvas.width / 2,
         canvas.height * 0.44,
-        480,
-        350,
+        560,
+        380,
         {
           floorReached: floor,
           level: progression.level,
@@ -684,6 +701,7 @@ function render(): void {
           trapsFound,
           rainbowFruitsFound,
         },
+        lifetimeStats,
         t
       );
     }
