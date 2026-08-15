@@ -9,6 +9,11 @@ import { promisify } from 'node:util';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { createWriteStream, existsSync } from 'node:fs';
 import path from 'node:path';
+// Not part of terser's public package exports, so imported by relative file
+// path rather than bare specifier — this is terser's own curated list of
+// every real DOM/BOM/JS-builtin property name, used to safely mangle only
+// our own object properties without touching Canvas/DOM/Array/Math etc.
+import { domprops } from '../node_modules/terser/tools/domprops.js';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -59,6 +64,7 @@ async function terserPass(code) {
     module: true,
     toplevel: true,
     compress: {
+      toplevel: true,
       passes: 3,
       unsafe: true,
       unsafe_arrows: true,
@@ -70,7 +76,9 @@ async function terserPass(code) {
     },
     mangle: {
       toplevel: true,
-      properties: false,
+      properties: {
+        reserved: domprops,
+      },
     },
     format: { comments: false },
   });
