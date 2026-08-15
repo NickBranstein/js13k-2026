@@ -18,7 +18,6 @@ import {
   drawMuteToggle,
   muteToggleBounds,
   drawHelpButton,
-  maxLogScroll,
 } from './render/ui';
 import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
@@ -208,8 +207,7 @@ function helpButtonBounds(): { x: number; y: number; size: number } {
 const STATS_PANEL_X = 16;
 const STATS_PANEL_W = 78;
 
-// combat log panel geometry — kept in sync with the drawLog() call below so
-// wheel-scroll hit-testing matches what's actually on screen
+// combat log panel geometry — kept in sync with the drawLog() call below
 const LOG_X = STATS_PANEL_X + STATS_PANEL_W + 12;
 const LOG_Y = canvas.height - 200;
 const LOG_W = canvas.width - 400 - (LOG_X - 56);
@@ -226,14 +224,6 @@ const PLAYER_HP_X = 56;
 const ENEMY_HP_X = canvas.width - 396;
 const PLAYER_SPRITE_X = PLAYER_HP_X + HP_BAR_W / 2;
 const ENEMY_SPRITE_X = ENEMY_HP_X + HP_BAR_W / 2;
-
-let logScroll = 0;
-let autoFollowLog = true;
-
-function resetLogScroll(): void {
-  logScroll = 0;
-  autoFollowLog = true;
-}
 
 function resetCombatAnims(): void {
   playerAttackAnimStart = null;
@@ -258,7 +248,6 @@ function enterFloor(): void {
   battleRewardsGranted = false;
   vulnerableMessageShown = false;
   vulnerableMessageLogIndex = -1;
-  resetLogScroll();
   resetCombatAnims();
 
   if (encounter.type === 'Monster') {
@@ -517,22 +506,6 @@ function canvasPoint(e: MouseEvent): { x: number; y: number } {
   };
 }
 
-canvas.addEventListener(
-  'wheel',
-  (e) => {
-    if (state === 'Title') return;
-    const { x: mx, y: my } = canvasPoint(e);
-    if (mx < LOG_X || mx > LOG_X + LOG_W || my < LOG_Y || my > LOG_Y + LOG_H) return;
-
-    e.preventDefault();
-    const lines = state === 'Battle' && battle ? battle.log : state === 'Event' ? eventLines : gameOverLines;
-    const max = maxLogScroll(lines.length, LOG_H);
-    logScroll = Math.min(max, Math.max(0, logScroll + Math.sign(e.deltaY)));
-    autoFollowLog = logScroll >= max;
-  },
-  { passive: false }
-);
-
 // Click/tap support for the command-bar menu. A single tap both selects and
 // confirms the tapped row — mobile browsers synthesize a 'click' from a
 // tap, so this doubles as touch support with no separate touch handlers.
@@ -749,7 +722,6 @@ function render(): void {
     ]);
 
     const currentLog = state === 'Battle' && battle ? battle.log : state === 'Event' ? eventLines : gameOverLines;
-    if (autoFollowLog) logScroll = maxLogScroll(currentLog.length, LOG_H);
     drawLog(
       context,
       LOG_X,
@@ -757,7 +729,6 @@ function render(): void {
       LOG_W,
       LOG_H,
       currentLog,
-      logScroll,
       state === 'Battle' ? vulnerableMessageLogIndex : -1,
       vulnerableMessageAnimStart,
       t

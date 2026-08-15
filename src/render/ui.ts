@@ -545,14 +545,9 @@ export function drawMenu(
 
 const LOG_LINE_HEIGHT = 19;
 const LOG_PADDING = 14;
-const LOG_SCROLLBAR_W = 8;
 
 function logVisibleLines(h: number): number {
   return Math.max(1, Math.floor((h - LOG_PADDING * 2) / LOG_LINE_HEIGHT));
-}
-
-export function maxLogScroll(totalLines: number, h: number): number {
-  return Math.max(0, totalLines - logVisibleLines(h));
 }
 
 // Letters sit at normal size; a single narrow pulse sweeps left to right
@@ -580,6 +575,8 @@ function drawGrowLine(ctx: CanvasRenderingContext2D, line: string, x: number, y:
   }
 }
 
+// Always shows the most recent lines that fit (no scrolling) — the log
+// panel is a rolling tail of combat history, not a browsable transcript.
 export function drawLog(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -587,7 +584,6 @@ export function drawLog(
   w: number,
   h: number,
   lines: string[],
-  scroll: number,
   growIndex = -1,
   growStart = 0,
   t = 0
@@ -595,12 +591,8 @@ export function drawLog(
   drawPanelBg(ctx, x, y, w, h);
 
   const visible = logVisibleLines(h);
-  const maxScroll = maxLogScroll(lines.length, h);
-  const clampedScroll = Math.min(Math.max(0, scroll), maxScroll);
-  const shown = lines.slice(clampedScroll, clampedScroll + visible);
-
-  const hasScrollbar = lines.length > visible;
-  const textW = hasScrollbar ? w - LOG_SCROLLBAR_W - 12 : w - 16;
+  const offset = Math.max(0, lines.length - visible);
+  const shown = lines.slice(offset);
 
   ctx.save();
   panelPath(ctx, x, y, w, h);
@@ -610,30 +602,13 @@ export function drawLog(
   ctx.textBaseline = 'top';
   shown.forEach((line, i) => {
     const lineY = y + LOG_PADDING + i * LOG_LINE_HEIGHT;
-    if (clampedScroll + i === growIndex) {
+    if (offset + i === growIndex) {
       ctx.fillStyle = SELECT_GOLD;
       drawGrowLine(ctx, line, x + 16, lineY, growStart, t);
     } else {
       ctx.fillStyle = TEXT_COLOR;
-      ctx.fillText(line, x + 16, lineY, textW);
+      ctx.fillText(line, x + 16, lineY, w - 16);
     }
   });
   ctx.restore();
-
-  if (hasScrollbar) {
-    const trackX = x + w - LOG_SCROLLBAR_W - 6;
-    const trackY = y + 6;
-    const trackH = h - 12;
-    ctx.beginPath();
-    ctx.roundRect(trackX, trackY, LOG_SCROLLBAR_W, trackH, LOG_SCROLLBAR_W / 2);
-    ctx.fillStyle = 'rgba(36,26,56,0.3)';
-    ctx.fill();
-
-    const thumbH = Math.max(20, (visible / lines.length) * trackH);
-    const thumbY = trackY + (maxScroll === 0 ? 0 : (clampedScroll / maxScroll) * (trackH - thumbH));
-    ctx.beginPath();
-    ctx.roundRect(trackX, thumbY, LOG_SCROLLBAR_W, thumbH, LOG_SCROLLBAR_W / 2);
-    ctx.fillStyle = PANEL_BORDER;
-    ctx.fill();
-  }
 }
