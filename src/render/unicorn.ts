@@ -4,17 +4,24 @@
 // and horn concepts are retained as the template for the new renderer.
 
 import { mulberry32, pick } from '../game/rng';
-import { INK_OUTLINE, PATTERN_COLORS, fillStroke, drawGroundShadow } from './shared';
+import { INK_OUTLINE, PATTERN_COLORS, ACCENT_HUES, fillStroke, drawGroundShadow, hslToHex } from './shared';
 
 export interface Coat {
   name: string;
-  light: string;
-  dark: string;
+  hue: number;
+  lightSat: number;
+  lightL: number;
+  darkSat: number;
+  darkL: number;
 }
 
 export interface ManeMood {
   name: string;
-  stops: string[];
+  hue: number;
+  step: number;
+  sat: number;
+  light: number;
+  count: number;
 }
 
 export interface UnicornTraits {
@@ -34,27 +41,41 @@ export interface UnicornTraits {
 }
 
 // ---------- curated palettes ----------
+// hue/lightSat/lightL/darkSat/darkL reverse-engineered from the original
+// hand-picked hex pairs (same hue for both, saturation/lightness varying) so
+// the generated colors land as close to the original look as an HSL formula
+// can get — light and dark are derived via hslToHex() at shade-set time
+// instead of being stored as hex strings.
 export const COATS: Coat[] = [
-  { name: 'Lavender Cream', light: '#f4ecff', dark: '#c6a9f2' },
-  { name: 'Buttercream', light: '#fff6df', dark: '#f0cf8a' },
-  { name: 'Blush Coral', light: '#ffe9ee', dark: '#f3a6b6' },
-  { name: 'Seafoam Mint', light: '#e8fff5', dark: '#93dcbb' },
-  { name: 'Periwinkle', light: '#eaf0ff', dark: '#a6b6f2' },
-  { name: 'Peach Sorbet', light: '#fff0e4', dark: '#f3b98a' },
-  { name: 'Iris Violet', light: '#f2e9ff', dark: '#a778d9' },
-  { name: 'Moonlight Grey', light: '#f3f1fb', dark: '#b7aecf' },
+  { name: 'Lavender Cream', hue: 265, lightSat: 100, lightL: 96, darkSat: 75, darkL: 80 },
+  { name: 'Buttercream', hue: 42, lightSat: 100, lightL: 94, darkSat: 77, darkL: 74 },
+  { name: 'Blush Coral', hue: 347, lightSat: 100, lightL: 96, darkSat: 76, darkL: 80 },
+  { name: 'Seafoam Mint', hue: 154, lightSat: 100, lightL: 95, darkSat: 51, darkL: 72 },
+  { name: 'Periwinkle', hue: 225, lightSat: 100, lightL: 96, darkSat: 75, darkL: 80 },
+  { name: 'Peach Sorbet', hue: 27, lightSat: 100, lightL: 95, darkSat: 81, darkL: 75 },
+  { name: 'Iris Violet', hue: 267, lightSat: 100, lightL: 96, darkSat: 56, darkL: 66 },
+  { name: 'Moonlight Grey', hue: 254, lightSat: 56, lightL: 96, darkSat: 26, darkL: 75 },
 ];
 
 // Base palettes only — rollManeStops() combines two random ones together at
-// roll time for much more effective variety than a fixed catalog would give,
-// without storing more hex data.
+// roll time for much more effective variety than a fixed catalog would give.
+// Each mood is 4 numbers, not a hex list — moodStops() walks hue in `step`
+// increments from `hue` at fixed saturation/lightness, so the palette is
+// genuinely generated from a formula (see hslToHex below) rather than
+// picked from a table of pre-computed colors.
 export const MANE_MOODS: ManeMood[] = [
-  { name: 'Pastel Rainbow', stops: ['#ffb3c6', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff'] },
-  { name: 'Jewel Rainbow', stops: ['#ff2e63', '#ff9f1c', '#ffd23f', '#2ec4b6', '#3a86ff'] },
-  { name: 'Sunset Rainbow', stops: ['#ff5e5b', '#ff9b42', '#ffd166', '#f6c453', '#ef476f'] },
-  { name: 'Aurora Rainbow', stops: ['#38f9d7', '#43e97b', '#a1ffce', '#5ee7df', '#66a6ff', '#a06cff'] },
-  { name: 'Ember Glow', stops: ['#ff3d1a', '#ffb01a', '#991a80'] },
+  { name: 'Pastel Rainbow', hue: 340, step: 55, sat: 85, light: 80, count: 6 },
+  { name: 'Jewel Rainbow', hue: 350, step: 60, sat: 80, light: 55, count: 5 },
+  { name: 'Sunset Rainbow', hue: 355, step: 12, sat: 85, light: 65, count: 5 },
+  { name: 'Aurora Rainbow', hue: 160, step: 28, sat: 75, light: 65, count: 6 },
+  { name: 'Ember Glow', hue: 10, step: -75, sat: 95, light: 48, count: 3 },
 ];
+
+export function moodStops(m: ManeMood): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < m.count; i++) out.push(hslToHex(m.hue + i * m.step, m.sat, m.light));
+  return out;
+}
 
 export const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
 
@@ -68,14 +89,17 @@ export const PATTERNS = ['Stripes', 'Spots', 'Stars'];
 // rolled here is independent of the unicorn's own mane, so the horn doesn't
 // have to match its mane theme.
 export function rollHornPalette(rng: () => number): string[] {
-  const stops = pick(rng, MANE_MOODS).stops;
+  const stops = moodStops(pick(rng, MANE_MOODS));
   const i = Math.floor(rng() * stops.length);
   let j = Math.floor(rng() * (stops.length - 1));
   if (j >= i) j++;
   return [stops[i], stops[j]];
 }
 const HORN_TURNS = 4;
-export const EYE_COLORS = ['#6b4bd6', '#d68b3f', '#3f9fd6', '#2fae76'];
+// Reuses the same accent hues as PATTERN_COLORS, just deeper/more saturated
+// (irises need to read as a rich color, not a pastel one) — 7 options
+// instead of the original 4 hardcoded ones, at no extra data cost.
+export const EYE_COLORS = ACCENT_HUES.map((h) => hslToHex(h, 62, 52));
 
 // Comet Shard's orbiting particles reuse the PATTERN_COLORS pool — no glow
 // ('' on traits.glowColor) is the default for a freshly-generated unicorn
@@ -87,7 +111,7 @@ export const GLOW_SHAPES = ['Dot', 'Star', 'Streak'];
 export function rollManeStops(rng: () => number): string[] {
   const a = pick(rng, MANE_MOODS);
   const b = pick(rng, MANE_MOODS);
-  const merged = a === b ? a.stops : a.stops.concat(b.stops);
+  const merged = a === b ? moodStops(a) : moodStops(a).concat(moodStops(b));
   const offset = Math.floor(rng() * merged.length);
   return merged.slice(offset).concat(merged.slice(0, offset));
 }
@@ -154,11 +178,13 @@ interface Shades {
 }
 
 function shadeSet(coat: Coat): Shades {
+  const light = hslToHex(coat.hue, coat.lightSat, coat.lightL);
+  const dark = hslToHex(coat.hue, coat.darkSat, coat.darkL);
   return {
-    base: mixHex(coat.light, coat.dark, 0.2),
-    light: mixHex(coat.light, '#ffffff', 0.28),
-    dark: mixHex(coat.dark, '#000000', 0.14),
-    outline: mixHex(coat.dark, '#140a22', 0.65),
+    base: mixHex(light, dark, 0.2),
+    light: mixHex(light, '#ffffff', 0.28),
+    dark: mixHex(dark, '#000000', 0.14),
+    outline: mixHex(dark, '#140a22', 0.65),
   };
 }
 
