@@ -1,7 +1,7 @@
 // Procedural monster generation. Same seed -> trait pattern as unicorn.ts,
 // generalized so it can be reused by the dungeon encounter system later.
 
-import { mulberry32, pick, range, rangeInt } from './rng';
+import { mulberry32, pick, range } from './rng';
 
 export type Archetype =
   | 'Blob'
@@ -32,7 +32,6 @@ export interface MonsterTraits {
   maxHp: number;
   atk: number;
   def: number;
-  moves: string[];
   isBoss: boolean;
 }
 
@@ -131,18 +130,6 @@ const NAME_SUFFIXES: string[][] = [
   /* Swarm */ ['Swarm', 'Cloud', 'Flurry'],
 ];
 
-const MOVE_POOL: string[][] = [
-  /* Blob */ ['Ooze Slam', 'Corrosive Spit', 'Body Press'],
-  /* Quadruped */ ['Bite', 'Charge', 'Claw Swipe'],
-  /* Avian */ ['Wing Slash', 'Dive Peck', 'Screech'],
-  /* Arachnid */ ['Venom Bite', 'Web Snare', 'Skitter Strike'],
-  /* Crystal */ ['Shard Slam', 'Prism Beam', 'Stone Guard'],
-  /* SeaCreature */ ['Tail Slap', 'Riptide', 'Pincer Crush'],
-  /* Flora */ ['Vine Whip', 'Spore Cloud', 'Thorn Barrage'],
-  /* Robot */ ['Laser Zap', 'Piston Punch', 'Overcharge'],
-  /* Swarm */ ['Swarm Bite', 'Buzz Frenzy', 'Sting Cloud'],
-];
-
 // Base stat blocks per archetype before floor-depth scaling.
 const BASE_STATS: { hp: number; atk: number; def: number }[] = [
   /* Blob */ { hp: 46, atk: 8, def: 9 },
@@ -172,14 +159,6 @@ export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): 
   const atk = Math.round(base.atk * depthMul * range(rng, 0.9, 1.1));
   const def = Math.round(base.def * depthMul * range(rng, 0.9, 1.1));
 
-  const movePool = MOVE_POOL[archetypeIndex];
-  const moveCount = rangeInt(rng, 1, Math.min(2, movePool.length));
-  const moves: string[] = [];
-  while (moves.length < moveCount) {
-    const move = pick(rng, movePool);
-    if (!moves.includes(move)) moves.push(move);
-  }
-
   return {
     seed,
     archetype,
@@ -192,7 +171,6 @@ export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): 
     maxHp: hp,
     atk,
     def,
-    moves,
     isBoss,
   };
 }
