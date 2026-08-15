@@ -1,14 +1,7 @@
 // Treasure/trap room visuals — drawn where the monster sprite would otherwise
 // sit, so non-combat floors still have something to look at.
 
-import { INK_OUTLINE as OUTLINE } from './shared';
-
-function drawGroundShadow(ctx: CanvasRenderingContext2D, r: number): void {
-  ctx.fillStyle = 'rgba(20,10,10,0.18)';
-  ctx.beginPath();
-  ctx.ellipse(0, r * 0.95, r * 0.85, r * 0.22, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
+import { INK_OUTLINE as OUTLINE, drawGroundShadow } from './shared';
 
 export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
   const r = 44;
@@ -16,7 +9,7 @@ export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: n
 
   ctx.save();
   ctx.translate(x, y);
-  drawGroundShadow(ctx, r);
+  drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
 
   // chest base
   ctx.fillStyle = '#8a5537';
@@ -76,7 +69,7 @@ export function drawTrapFloor(ctx: CanvasRenderingContext2D, x: number, y: numbe
 
   ctx.save();
   ctx.translate(x, y);
-  drawGroundShadow(ctx, r);
+  drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
 
   // stone floor plate
   ctx.fillStyle = '#5c5560';
