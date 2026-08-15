@@ -18,15 +18,14 @@ import {
   muteToggleBounds,
   drawHelpButton,
   maxLogScroll,
-  GOLD_TEXT,
-  TEXT_COLOR,
 } from './render/ui';
+import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
 import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
 import { handleDevKeydown, drawDevTools } from './dev/devtools';
 import { mulberry32, chance } from './game/rng';
-import { animOffset, animProgress, drawImpactBurst } from './render/fx';
+import { animOffset, animProgress } from './render/fx';
 import {
   playMenuMove,
   playConfirm,
@@ -567,7 +566,7 @@ function drawHowTo(): void {
   context.fillStyle = 'rgba(53,32,84,0.95)';
   context.fill();
   context.lineWidth = 2.5;
-  context.strokeStyle = 'rgba(255,240,250,0.85)';
+  context.strokeStyle = PANEL_BORDER;
   context.stroke();
 
   context.textAlign = 'center';
@@ -649,7 +648,6 @@ function render(): void {
       context.scale(uiScale, uiScale);
       drawUnicorn(context, 0, 0, traits, t);
       context.restore();
-      if (playerHitP !== null) drawImpactBurst(context, PLAYER_SPRITE_X, canvas.height * 0.52, playerHitP);
     }
 
     if (state === 'Battle' && monsterTraits) {
@@ -663,7 +661,6 @@ function render(): void {
       context.scale(uiScale, uiScale);
       drawMonster(context, 0, 0, monsterTraits, t);
       context.restore();
-      if (enemyHitP !== null) drawImpactBurst(context, ENEMY_SPRITE_X, canvas.height * 0.5, enemyHitP);
     } else if (state === 'Event') {
       context.save();
       context.translate(ENEMY_SPRITE_X, canvas.height * 0.5);

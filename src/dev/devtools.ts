@@ -17,11 +17,11 @@ import {
   MANE_MOODS,
   MANE_STYLES,
   PATTERNS,
-  PATTERN_COLORS,
   EYE_COLORS,
   GLOW_SHAPES,
   type UnicornTraits,
 } from '../render/unicorn';
+import { PATTERN_COLORS } from '../render/shared';
 import { MUTATION_ITEMS } from '../game/item';
 import type { Combatant } from '../game/battle';
 
@@ -65,6 +65,19 @@ interface LabCategory {
   apply: (traits: UnicornTraits, index: number) => void;
 }
 
+// Every unordered (base, base) pair including self-pairs — mirrors what
+// rollManeStops() can actually produce, so the Lab shows real outcomes.
+let manePairsCache: [number, number][] | null = null;
+function manePairs(): [number, number][] {
+  if (!manePairsCache) {
+    manePairsCache = [];
+    for (let i = 0; i < MANE_MOODS.length; i++) {
+      for (let j = i; j < MANE_MOODS.length; j++) manePairsCache.push([i, j]);
+    }
+  }
+  return manePairsCache;
+}
+
 let labCategoriesCache: LabCategory[] | null = null;
 function labCategories(): LabCategory[] {
   if (labCategoriesCache) return labCategoriesCache;
@@ -77,10 +90,16 @@ function labCategories(): LabCategory[] {
       },
     },
     {
-      name: 'Mane Mood',
-      values: MANE_MOODS.map((m) => m.name),
-      apply: (t, i) => {
-        t.maneStops = MANE_MOODS[i].stops;
+      // Mirrors rollManeStops()'s real behavior: two base moods combined
+      // (including "self + self" for a pure single-family mane), not just
+      // the raw base palette list.
+      name: 'Mane Combo',
+      values: manePairs().map(([i, j]) =>
+        i === j ? MANE_MOODS[i].name : `${MANE_MOODS[i].name} + ${MANE_MOODS[j].name}`
+      ),
+      apply: (t, idx) => {
+        const [i, j] = manePairs()[idx];
+        t.maneStops = i === j ? MANE_MOODS[i].stops : MANE_MOODS[i].stops.concat(MANE_MOODS[j].stops);
       },
     },
     {

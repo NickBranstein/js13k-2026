@@ -3,7 +3,8 @@
 
 import type { Combatant } from './battle';
 import type { UnicornTraits } from '../render/unicorn';
-import { COATS, PATTERNS, PATTERN_COLORS, GLOW_SHAPES, rollManeStops, rollHornPalette } from '../render/unicorn';
+import { COATS, PATTERNS, GLOW_SHAPES, rollManeStops, rollHornPalette } from '../render/unicorn';
+import { PATTERN_COLORS } from '../render/shared';
 import { pick, rangeInt } from './rng';
 
 // Not every fight should reward a consumable — this keeps Item scarce enough

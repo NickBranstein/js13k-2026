@@ -7,23 +7,7 @@
 // rolled name instead of being independently randomized.
 
 import type { MonsterTraits } from '../game/monster';
-import { INK_OUTLINE as OUTLINE } from './unicorn';
-import { TEXT_COLOR } from './ui';
-
-function fillStroke(ctx: CanvasRenderingContext2D, fill: string): void {
-  ctx.fillStyle = fill;
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 4;
-  ctx.fill();
-  ctx.stroke();
-}
-
-function drawGroundShadow(ctx: CanvasRenderingContext2D, r: number): void {
-  ctx.fillStyle = 'rgba(20,10,10,0.18)';
-  ctx.beginPath();
-  ctx.ellipse(0, r * 0.95, r * 0.8, r * 0.22, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
+import { INK_OUTLINE as OUTLINE, fillStroke, drawGroundShadow } from './shared';
 
 function drawEyes(ctx: CanvasRenderingContext2D, cx: number, cy: number, spread: number, r: number): void {
   ctx.fillStyle = OUTLINE;
@@ -91,7 +75,7 @@ function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, suffix:
   ctx.strokeStyle = OUTLINE;
   ctx.fillStyle = palette.dark;
 
-  if (suffix === 'Hound') {
+  if (suffix === 'Lynx') {
     // slim whip tail
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -110,15 +94,11 @@ function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, suffix:
     ctx.arc(baseX - bodyR * 0.18, baseY - bodyR * 0.12, bodyR * 0.16, 0.2 + sway, Math.PI * 1.6 + sway);
     ctx.stroke();
   } else {
-    // Stag: short tail with a tufted tip
+    // Stag: short tail
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(baseX, baseY);
     ctx.quadraticCurveTo(baseX - bodyR * 0.3, baseY - bodyR * (0.35 + sway), baseX - bodyR * 0.4, baseY - bodyR * (0.5 + sway));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(baseX - bodyR * 0.4, baseY - bodyR * (0.5 + sway), bodyR * 0.1, bodyR * 0.14, 0.4, 0, Math.PI * 2);
-    ctx.fill();
     ctx.stroke();
   }
 }
@@ -128,32 +108,29 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 3;
 
-  if (suffix === 'Hound') {
-    // floppy ears drooping from the sides of the head
-    [bodyR * 0.68, bodyR * 1.02].forEach((ex) => {
+  if (suffix === 'Lynx') {
+    // regular pointy ears, angled back from the top of the head
+    [bodyR * 0.62, bodyR * 0.92].forEach((ex) => {
       ctx.beginPath();
-      ctx.ellipse(ex, -bodyR * 0.1, bodyR * 0.14, bodyR * 0.26, 0.3, 0, Math.PI * 2);
+      ctx.moveTo(ex, -bodyR * 0.45);
+      ctx.lineTo(ex - bodyR * 0.06, -bodyR * 0.75);
+      ctx.lineTo(ex + bodyR * 0.14, -bodyR * 0.55);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
     });
   } else if (suffix === 'Boar') {
-    // short pointed ears
+    // flat snout with two small nostrils, no ears
     ctx.beginPath();
-    ctx.moveTo(bodyR * 0.72, -bodyR * 0.48);
-    ctx.lineTo(bodyR * 0.65, -bodyR * 0.72);
-    ctx.lineTo(bodyR * 0.85, -bodyR * 0.55);
-    ctx.closePath();
+    ctx.ellipse(bodyR * 1.15, -bodyR * 0.15, bodyR * 0.14, bodyR * 0.1, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    // tusks
-    ctx.fillStyle = TEXT_COLOR;
-    ctx.beginPath();
-    ctx.moveTo(bodyR * 1.15, -bodyR * 0.08);
-    ctx.quadraticCurveTo(bodyR * 1.3, -bodyR * 0.02, bodyR * 1.22, bodyR * 0.12);
-    ctx.lineTo(bodyR * 1.12, bodyR * 0.06);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.fillStyle = OUTLINE;
+    [bodyR * 1.1, bodyR * 1.2].forEach((nx) => {
+      ctx.beginPath();
+      ctx.arc(nx, -bodyR * 0.15, bodyR * 0.02, 0, Math.PI * 2);
+      ctx.fill();
+    });
   } else {
     // Stag: branching antlers (main beam + one fork per side)
     ctx.lineWidth = 4;
@@ -261,27 +238,19 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.stroke();
   }
 
-  // legs
+  // legs + a small branching talon fork at the foot — same open-branch motif
+  // as the Quadruped Stag's antlers, shared across all three suffixes.
   ctx.strokeStyle = traits.palette.dark;
   ctx.lineWidth = 3;
   [-0.15, 0.15].forEach((lx) => {
     ctx.beginPath();
     ctx.moveTo(lx * bodyR, bodyR * 0.6);
     ctx.lineTo(lx * bodyR, bodyR * 1.0);
+    ctx.moveTo(lx * bodyR - bodyR * 0.08, bodyR * 1.08);
+    ctx.lineTo(lx * bodyR, bodyR * 1.0);
+    ctx.lineTo(lx * bodyR + bodyR * 0.08, bodyR * 1.08);
     ctx.stroke();
   });
-  if (suffix === 'Harpy') {
-    // small clawed feet
-    ctx.fillStyle = traits.palette.dark;
-    [-0.15, 0.15].forEach((lx) => {
-      ctx.beginPath();
-      ctx.moveTo(lx * bodyR - bodyR * 0.1, bodyR * 1.0);
-      ctx.lineTo(lx * bodyR + bodyR * 0.1, bodyR * 1.0);
-      ctx.lineTo(lx * bodyR, bodyR * 1.15);
-      ctx.closePath();
-      ctx.fill();
-    });
-  }
 
   // body
   ctx.beginPath();

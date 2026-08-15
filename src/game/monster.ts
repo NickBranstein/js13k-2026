@@ -62,7 +62,7 @@ const NAME_PREFIXES: Record<Archetype, string[]> = {
 
 const NAME_SUFFIXES: Record<Archetype, string[]> = {
   Blob: ['Blob', 'Ooze', 'Glob'],
-  Quadruped: ['Hound', 'Boar', 'Stag'],
+  Quadruped: ['Lynx', 'Boar', 'Stag'],
   Avian: ['Roc', 'Harpy', 'Jay'],
   Arachnid: ['Spinner', 'Crawler', 'Weaver'],
   Crystal: ['Golem', 'Sentinel', 'Warden'],

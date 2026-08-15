@@ -1,7 +1,7 @@
 // Treasure/trap room visuals — drawn where the monster sprite would otherwise
 // sit, so non-combat floors still have something to look at.
 
-import { INK_OUTLINE as OUTLINE, PATTERN_COLORS as SPARKLE_COLORS } from './unicorn';
+import { INK_OUTLINE as OUTLINE } from './shared';
 
 function drawGroundShadow(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.fillStyle = 'rgba(20,10,10,0.18)';
@@ -66,18 +66,6 @@ export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: n
   ctx.roundRect(-r * 0.14, r * 0.18, r * 0.28, r * 0.24, 4);
   ctx.fill();
   ctx.stroke();
-
-  // orbiting rainbow sparkles
-  for (let i = 0; i < 6; i++) {
-    const phase = (i / 6) * Math.PI * 2;
-    const px = Math.cos(t / 500 + phase) * r * 0.95;
-    const py = Math.sin(t / 500 + phase) * r * 0.4 - r * 0.55;
-    const sr = 3 + Math.sin(t / 300 + phase) * 1.5;
-    ctx.fillStyle = SPARKLE_COLORS[i % SPARKLE_COLORS.length];
-    ctx.beginPath();
-    ctx.arc(px, py, Math.max(1, sr), 0, Math.PI * 2);
-    ctx.fill();
-  }
 
   ctx.restore();
 }

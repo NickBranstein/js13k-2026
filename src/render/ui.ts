@@ -2,11 +2,8 @@
 // panels to match the "unicorns and rainbows" theme rather than flat boxes.
 
 import type { Combatant } from '../game/battle';
-import { PATTERN_COLORS as TITLE_SPARKLE_COLORS } from './unicorn';
+import { PATTERN_COLORS as TITLE_SPARKLE_COLORS, INK_OUTLINE, TEXT_COLOR, GOLD_TEXT, PANEL_BORDER } from './shared';
 
-const PANEL_BORDER = 'rgba(255,240,250,0.85)';
-export const TEXT_COLOR = '#f4ecff';
-export const GOLD_TEXT = '#4a2f1f';
 const SELECT_GOLD = '#ffd166';
 const PANEL_RADIUS = 16;
 const HP_LOW_THRESHOLD = 0.5;
@@ -160,7 +157,7 @@ export function drawHpBar(
   ctx.font = '600 19px sans-serif';
   ctx.textBaseline = 'bottom';
   const label = level === undefined ? combatant.name : `${combatant.name}  Lv.${level}`;
-  ctx.fillStyle = '#241a38';
+  ctx.fillStyle = INK_OUTLINE;
   ctx.fillText(label, x + 4, y - 8);
 
   ctx.font = '600 15px sans-serif';
@@ -168,7 +165,7 @@ export function drawHpBar(
   ctx.textAlign = 'center';
   const hpText = `${shown} / ${combatant.maxHp}`;
   const onGreen = pct > HP_LOW_THRESHOLD;
-  ctx.fillStyle = onGreen ? 'rgba(255,255,255,0.8)' : '#241a38';
+  ctx.fillStyle = onGreen ? 'rgba(255,255,255,0.8)' : INK_OUTLINE;
   ctx.fillText(hpText, x + w / 2 + 1, y + h / 2 + 1);
   ctx.fillStyle = onGreen ? '#1c3d24' : TEXT_COLOR;
   ctx.fillText(hpText, x + w / 2, y + h / 2);

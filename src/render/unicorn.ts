@@ -4,6 +4,7 @@
 // and horn concepts are retained as the template for the new renderer.
 
 import { mulberry32, pick } from '../game/rng';
+import { INK_OUTLINE, PATTERN_COLORS, fillStroke, drawGroundShadow } from './shared';
 
 export interface Coat {
   name: string;
@@ -44,14 +45,14 @@ export const COATS: Coat[] = [
   { name: 'Moonlight Grey', light: '#f3f1fb', dark: '#b7aecf' },
 ];
 
+// Base palettes only — rollManeStops() combines two random ones together at
+// roll time for much more effective variety than a fixed catalog would give,
+// without storing more hex data.
 export const MANE_MOODS: ManeMood[] = [
   { name: 'Pastel Rainbow', stops: ['#ffb3c6', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff'] },
   { name: 'Jewel Rainbow', stops: ['#ff2e63', '#ff9f1c', '#ffd23f', '#2ec4b6', '#3a86ff'] },
   { name: 'Sunset Rainbow', stops: ['#ff5e5b', '#ff9b42', '#ffd166', '#f6c453', '#ef476f'] },
   { name: 'Aurora Rainbow', stops: ['#38f9d7', '#43e97b', '#a1ffce', '#5ee7df', '#66a6ff', '#a06cff'] },
-  { name: 'Cotton Candy', stops: ['#ffd1e8', '#c9a2ff', '#a2ffe0'] },
-  { name: 'Cosmic Ice', stops: ['#e0f7ff', '#7fb8ff', '#ff8fd9'] },
-  { name: 'Wildflower', stops: ['#ff6b9d', '#ffe36b', '#6bd9ff'] },
   { name: 'Ember Glow', stops: ['#ff3d1a', '#ffb01a', '#991a80'] },
 ];
 
@@ -61,7 +62,6 @@ export const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
 // this pool — '' means no pattern (the default for a freshly-generated
 // unicorn that hasn't picked one up yet).
 export const PATTERNS = ['Stripes', 'Spots', 'Stars'];
-export const PATTERN_COLORS = ['#ff9ecb', '#ffd28a', '#9effc4', '#9ecfff', '#c39eff', '#fff59e', '#ffffff'];
 
 // Horn banding pulls two colors from a random mane mood, sharing the color
 // pool instead of maintaining a separate hardcoded palette list — the mood
@@ -76,7 +76,6 @@ export function rollHornPalette(rng: () => number): string[] {
 }
 const HORN_TURNS = 4;
 export const EYE_COLORS = ['#6b4bd6', '#d68b3f', '#3f9fd6', '#2fae76'];
-export const INK_OUTLINE = '#241a38';
 
 // Comet Shard's orbiting particles reuse the PATTERN_COLORS pool — no glow
 // ('' on traits.glowColor) is the default for a freshly-generated unicorn
@@ -86,9 +85,11 @@ export const GLOW_SHAPES = ['Dot', 'Star', 'Streak'];
 // Rotates a mood's color stops by a random offset so two unicorns sharing a
 // mood don't render with the exact same starting color.
 export function rollManeStops(rng: () => number): string[] {
-  const mood = pick(rng, MANE_MOODS);
-  const offset = Math.floor(rng() * mood.stops.length);
-  return mood.stops.slice(offset).concat(mood.stops.slice(0, offset));
+  const a = pick(rng, MANE_MOODS);
+  const b = pick(rng, MANE_MOODS);
+  const merged = a === b ? a.stops : a.stops.concat(b.stops);
+  const offset = Math.floor(rng() * merged.length);
+  return merged.slice(offset).concat(merged.slice(0, offset));
 }
 
 export function generateUnicornTraits(seed: number): UnicornTraits {
@@ -170,26 +171,8 @@ function contactShadow(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx
   ctx.restore();
 }
 
-function drawGroundShadow(ctx: CanvasRenderingContext2D, cx: number, groundY: number, rx: number) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(20,10,30,0.24)';
-  ctx.beginPath();
-  ctx.ellipse(cx, groundY, rx, rx * 0.25, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
 
 // ---------- reusable path helpers ----------
-function fillStroke(ctx: CanvasRenderingContext2D, fill: string, outline: string, width = 4) {
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.strokeStyle = outline;
-  ctx.lineWidth = width;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.stroke();
-}
-
 function horseLeg(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -644,7 +627,7 @@ export function drawUnicorn(
 
   const shades = shadeSet(traits.coat);
 
-  drawGroundShadow(ctx, bodyX + 8 * s, groundY + 5, 110 * s);
+  drawGroundShadow(ctx, 110 * s, bodyX + 8 * s, groundY + 5, 110 * s, 110 * s * 0.25, 'rgba(20,10,30,0.24)');
 
   // Tail behind the body.
   drawTail(ctx, bodyX - bodyRx * 0.82, bodyY - bodyRy * 0.25, traits, t);
