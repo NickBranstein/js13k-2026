@@ -67,14 +67,17 @@ export const PATTERN_COLORS = PATTERN_HSL.map(([h, l]) => hslToHex(h, 100, l));
 // whichever "lens" a given use needs, instead of a second hardcoded list.
 export const ACCENT_HUES = PATTERN_HSL.map(([h]) => h);
 
-export function fillStroke(ctx: CanvasRenderingContext2D, fill: string, outline: string = INK_OUTLINE, width = 4): void {
+// path, if given, fills/strokes a Path2D instead of the current path — lets
+// a caller build a path once and reuse it (e.g. also as a clip region)
+// instead of redrawing the same curves a second time.
+export function fillStroke(ctx: CanvasRenderingContext2D, fill: string, outline: string = INK_OUTLINE, width = 4, path?: Path2D): void {
   ctx.fillStyle = fill;
-  ctx.fill();
+  path ? ctx.fill(path) : ctx.fill();
   ctx.strokeStyle = outline;
   ctx.lineWidth = width;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  ctx.stroke();
+  path ? ctx.stroke(path) : ctx.stroke();
 }
 
 // Defaults match monster.ts's 9 call sites exactly (all just pass r), so

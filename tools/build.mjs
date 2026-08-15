@@ -92,9 +92,7 @@ async function roadrollPack(jsCode) {
       type: 'js',
       action: 'eval',
     },
-  ], {
-    numAbbreviations: -1,
-  });
+  ], {});
   await packer.optimize(2);
   return packer.makeDecoder().firstLine + packer.makeDecoder().secondLine;
 }

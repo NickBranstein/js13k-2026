@@ -381,8 +381,6 @@ function drawEquineHead(
   // There is no ellipse anywhere in the skull/muzzle silhouette.
   const headLen = 67 * scale;
   const skullH = 54 * scale;
-  const muzzleLen = 47 * scale;
-  const muzzleDrop = 13 * scale;
 
   // Back of skull -> forehead -> nasal bridge -> nose -> jaw -> throat -> cheek.
   ctx.beginPath();
@@ -474,11 +472,6 @@ function drawEquineHead(
   return {
     hornX: x + headLen * 0.28,
     hornY: y - skullH * 0.10,
-    muzzleX: x + headLen * 0.92,
-    muzzleY: y + skullH * 0.23 + muzzleDrop * 0.15,
-    headBottom: y + skullH * 0.51,
-    headTop: y - skullH * 0.56,
-    headLen,
   };
 }
 
@@ -535,16 +528,20 @@ function drawHorn(
 }
 
 // ---------- new horse/unicorn body ----------
-function bodyPath(ctx: CanvasRenderingContext2D, bodyX: number, bodyY: number, bodyRx: number, bodyRy: number) {
-  ctx.beginPath();
-  ctx.moveTo(bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
-  ctx.quadraticCurveTo(bodyX - bodyRx * 0.94, bodyY - bodyRy * 0.68, bodyX - bodyRx * 0.30, bodyY - bodyRy * 0.94);
-  ctx.quadraticCurveTo(bodyX + bodyRx * 0.34, bodyY - bodyRy * 0.98, bodyX + bodyRx * 0.87, bodyY - bodyRy * 0.54);
-  ctx.quadraticCurveTo(bodyX + bodyRx * 1.05, bodyY - bodyRy * 0.08, bodyX + bodyRx * 0.91, bodyY + bodyRy * 0.44);
-  ctx.quadraticCurveTo(bodyX + bodyRx * 0.68, bodyY + bodyRy * 0.83, bodyX + bodyRx * 0.15, bodyY + bodyRy * 0.92);
-  ctx.quadraticCurveTo(bodyX - bodyRx * 0.52, bodyY + bodyRy * 0.88, bodyX - bodyRx * 0.91, bodyY + bodyRy * 0.48);
-  ctx.quadraticCurveTo(bodyX - bodyRx * 1.02, bodyY + bodyRy * 0.25, bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
-  ctx.closePath();
+// Returns a Path2D instead of drawing onto ctx's current path, so drawBody
+// can build the barrel shape once and reuse it for both the fill/stroke and
+// the pattern clip below, instead of reconstructing the same curves twice.
+function bodyPath(bodyX: number, bodyY: number, bodyRx: number, bodyRy: number): Path2D {
+  const p = new Path2D();
+  p.moveTo(bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
+  p.quadraticCurveTo(bodyX - bodyRx * 0.94, bodyY - bodyRy * 0.68, bodyX - bodyRx * 0.30, bodyY - bodyRy * 0.94);
+  p.quadraticCurveTo(bodyX + bodyRx * 0.34, bodyY - bodyRy * 0.98, bodyX + bodyRx * 0.87, bodyY - bodyRy * 0.54);
+  p.quadraticCurveTo(bodyX + bodyRx * 1.05, bodyY - bodyRy * 0.08, bodyX + bodyRx * 0.91, bodyY + bodyRy * 0.44);
+  p.quadraticCurveTo(bodyX + bodyRx * 0.68, bodyY + bodyRy * 0.83, bodyX + bodyRx * 0.15, bodyY + bodyRy * 0.92);
+  p.quadraticCurveTo(bodyX - bodyRx * 0.52, bodyY + bodyRy * 0.88, bodyX - bodyRx * 0.91, bodyY + bodyRy * 0.48);
+  p.quadraticCurveTo(bodyX - bodyRx * 1.02, bodyY + bodyRy * 0.25, bodyX - bodyRx * 0.95, bodyY + bodyRy * 0.05);
+  p.closePath();
+  return p;
 }
 
 function drawBody(
@@ -557,8 +554,8 @@ function drawBody(
   traits: UnicornTraits
 ) {
   // Barrel with a slightly deeper chest and lifted rump.
-  bodyPath(ctx, bodyX, bodyY, bodyRx, bodyRy);
-  fillStroke(ctx, shades.base, shades.outline, 5);
+  const barrel = bodyPath(bodyX, bodyY, bodyRx, bodyRy);
+  fillStroke(ctx, shades.base, shades.outline, 5, barrel);
 
   // Chest plane.
   ctx.beginPath();
@@ -573,8 +570,7 @@ function drawBody(
   // Rainbow Nectar: a coat pattern clipped to the body barrel.
   if (traits.pattern) {
     ctx.save();
-    bodyPath(ctx, bodyX, bodyY, bodyRx, bodyRy);
-    ctx.clip();
+    ctx.clip(barrel);
     ctx.fillStyle = traits.patternColor;
     ctx.strokeStyle = traits.patternColor;
     ctx.globalAlpha = 1;
@@ -625,23 +621,17 @@ function drawBody(
 }
 
 /**
- * Draws a procedural unicorn using a horse-first silhouette.
- * Feet land at (originX, originY). t is an animation clock in milliseconds.
+ * Draws a procedural unicorn using a horse-first silhouette, feet landing at
+ * the caller's already-translated (0,0) origin. t is an animation clock in
+ * milliseconds.
  */
-export function drawUnicorn(
-  ctx: CanvasRenderingContext2D,
-  originX: number,
-  originY: number,
-  traits: UnicornTraits,
-  t: number,
-  reduceMotion = false
-) {
+export function drawUnicorn(ctx: CanvasRenderingContext2D, traits: UnicornTraits, t: number) {
   const s = 1;
-  const bob = reduceMotion ? 0 : Math.sin(t * 0.0018) * 2.2 * s;
-  const groundY = originY;
+  const bob = Math.sin(t * 0.0018) * 2.2 * s;
+  const groundY = 0;
 
   // Horse proportions: long body, high shoulder, elevated head, substantial neck.
-  const bodyX = originX;
+  const bodyX = 0;
   const bodyY = groundY - 108 * s + bob;
   const bodyRx = 83 * s;
   const bodyRy = 49 * s;
