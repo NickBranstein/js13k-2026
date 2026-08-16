@@ -14,6 +14,7 @@
 import { drawMenu } from '../render/ui';
 import {
   COATS,
+  COAT_NAME,
   MANE_MOODS,
   MANE_STYLES,
   PATTERNS,
@@ -84,7 +85,7 @@ function labCategories(): LabCategory[] {
   labCategoriesCache = [
     {
       name: 'Coat',
-      values: COATS.map((c) => c.name),
+      values: COATS.map((c) => c[COAT_NAME]),
       apply: (t, i) => {
         t.coat = COATS[i];
       },

@@ -3,7 +3,7 @@
 
 import type { Combatant } from './battle';
 import type { UnicornTraits } from '../render/unicorn';
-import { COATS, PATTERNS, GLOW_SHAPES, rollManeStops, rollHornPalette } from '../render/unicorn';
+import { COATS, COAT_NAME, PATTERNS, GLOW_SHAPES, rollManeStops, rollHornPalette } from '../render/unicorn';
 import { PATTERN_COLORS } from '../render/shared';
 import { pick, rangeInt } from './rng';
 
@@ -55,7 +55,7 @@ export const MUTATION_ITEMS: MutationItem[] = [
     apply: (player, traits, rng) => {
       traits.coat = pick(rng, COATS);
       player.def += 3;
-      return `Your coat shifts to ${traits.coat.name} and your hide toughens. (+3 DEF)`;
+      return `Your coat shifts to ${traits.coat[COAT_NAME]} and your hide toughens. (+3 DEF)`;
     },
   },
   {

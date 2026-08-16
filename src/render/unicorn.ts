@@ -6,11 +6,13 @@
 import { mulberry32, pick } from '../game/rng';
 import { INK_OUTLINE, PATTERN_COLORS, fillStroke, drawGroundShadow } from './shared';
 
-export interface Coat {
-  name: string;
-  light: string;
-  dark: string;
-}
+export const COAT_NAME = 0;
+const COAT_BASE = 1;
+const COAT_LIGHT = 2;
+const COAT_DARK = 3;
+const COAT_OUTLINE = 4;
+
+export type Coat = [name: string, base: string, light: string, dark: string, outline: string];
 
 export interface ManeMood {
   name: string;
@@ -37,14 +39,14 @@ export interface UnicornTraits {
 // Precomputed literals preserve the exact colors produced by the former HSL
 // formulas without paying for conversion code or per-frame string creation.
 export const COATS: Coat[] = [
-  { name: 'Lavender Cream', light: '#f3ebff', dark: '#c6a6f2' },
-  { name: 'Buttercream', light: '#fff6e0', dark: '#f0d18a' },
-  { name: 'Blush Coral', light: '#ffebef', dark: '#f3a5b6' },
-  { name: 'Seafoam Mint', light: '#e5fff4', dark: '#93dcbc' },
-  { name: 'Periwinkle', light: '#ebf0ff', dark: '#a6b9f2' },
-  { name: 'Peach Sorbet', light: '#fff1e5', dark: '#f3ba8c' },
-  { name: 'Iris Violet', light: '#f4ebff', dark: '#a378d9' },
-  { name: 'Moonlight Grey', light: '#f2effb', dark: '#b6afd0' },
+  ['Lavender Cream', '#eaddfc', '#f6f1ff', '#aa8fd0', '#52416b'],
+  ['Buttercream', '#fcefcf', '#fff9e9', '#ceb477', '#615046'],
+  ['Blush Coral', '#fddde4', '#fff1f3', '#d18e9d', '#624056'],
+  ['Seafoam Mint', '#d5f8e9', '#ecfff7', '#7ebda2', '#405458'],
+  ['Periwinkle', '#dde5fc', '#f1f4ff', '#8f9fd0', '#47476b'],
+  ['Peach Sorbet', '#fde6d3', '#fff5ec', '#d1a078', '#624847'],
+  ['Iris Violet', '#e4d4f7', '#f7f1ff', '#8c67bb', '#463162'],
+  ['Moonlight Grey', '#e6e2f2', '#f6f3fc', '#9d97b3', '#4d445f'],
 ];
 
 // Base palettes only — rollManeStops() combines two random ones together at
@@ -119,50 +121,6 @@ export function generateUnicornTraits(seed: number): UnicornTraits {
   };
 }
 
-// ---------- color helpers ----------
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function hexToRgb(hex: string) {
-  const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  };
-}
-
-function rgba(hex: string, a: number): string {
-  const c = hexToRgb(hex);
-  return `rgba(${c.r},${c.g},${c.b},${a})`;
-}
-
-function mixHex(c1: string, c2: string, t: number): string {
-  const a = hexToRgb(c1);
-  const b = hexToRgb(c2);
-  const r = Math.round(lerp(a.r, b.r, t));
-  const g = Math.round(lerp(a.g, b.g, t));
-  const bl = Math.round(lerp(a.b, b.b, t));
-  return `rgb(${r},${g},${bl})`;
-}
-
-interface Shades {
-  base: string;
-  light: string;
-  dark: string;
-  outline: string;
-}
-
-function shadeSet(coat: Coat): Shades {
-  return {
-    base: mixHex(coat.light, coat.dark, 0.2),
-    light: mixHex(coat.light, '#ffffff', 0.28),
-    dark: mixHex(coat.dark, '#000000', 0.14),
-    outline: mixHex(coat.dark, '#140a22', 0.65),
-  };
-}
-
 function contactShadow(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, alpha: number) {
   ctx.save();
   ctx.fillStyle = `rgba(26,15,40,${alpha})`;
@@ -186,7 +144,6 @@ function horseLeg(
   front: boolean,
   phase = 0
 ) {
-  const shades = shadeSet(coat);
   const kneeX = x + Math.sin(angle) * upperLen;
   const kneeY = y + Math.cos(angle) * upperLen;
   const fetlockAngle = angle * 0.45 + phase;
@@ -201,7 +158,7 @@ function horseLeg(
   ctx.lineTo(kneeX + width * 0.42, kneeY + 3);
   ctx.quadraticCurveTo(x + width * 0.8, y + upperLen * 0.42, x + width * 0.48, y);
   ctx.closePath();
-  fillStroke(ctx, front ? shades.base : shades.dark, shades.outline, 4);
+  fillStroke(ctx, front ? coat[COAT_BASE] : coat[COAT_DARK], coat[COAT_OUTLINE], 4);
 
   // Narrow cannon bone.
   ctx.beginPath();
@@ -210,7 +167,7 @@ function horseLeg(
   ctx.lineTo(fetlockX + width * 0.24, fetlockY + 2);
   ctx.lineTo(kneeX + width * 0.38, kneeY + 5);
   ctx.closePath();
-  fillStroke(ctx, front ? shades.base : shades.dark, shades.outline, 3.5);
+  fillStroke(ctx, front ? coat[COAT_BASE] : coat[COAT_DARK], coat[COAT_OUTLINE], 3.5);
 
   // Fetlock + hoof.
   const hoofW = width * 0.9;
@@ -221,7 +178,7 @@ function horseLeg(
   ctx.quadraticCurveTo(fetlockX + hoofW * 0.15, fetlockY + hoofH * 1.15, fetlockX + hoofW * 0.55, fetlockY + hoofH * 0.48);
   ctx.lineTo(fetlockX + hoofW * 0.46, fetlockY);
   ctx.closePath();
-  fillStroke(ctx, front ? '#7a5540' : '#5c3f30', shades.outline, 3);
+  fillStroke(ctx, front ? '#7a5540' : '#5c3f30', coat[COAT_OUTLINE], 3);
 
   contactShadow(ctx, fetlockX + hoofW * 0.1, fetlockY + hoofH * 0.82, hoofW * 0.42, hoofH * 0.16, 0.13);
   ctx.restore();
@@ -317,7 +274,7 @@ function drawEar(
   h: number,
   w: number,
   lean: number,
-  shades: Shades,
+  shades: Coat,
   inner = '#ff9fc0'
 ) {
   ctx.save();
@@ -329,7 +286,7 @@ function drawEar(
   ctx.quadraticCurveTo(-w * 0.25, -h * 0.72, 0, -h);
   ctx.quadraticCurveTo(w * 0.38, -h * 0.7, w * 0.5, 4);
   ctx.closePath();
-  fillStroke(ctx, shades.base, shades.outline, 4);
+  fillStroke(ctx, shades[COAT_BASE], shades[COAT_OUTLINE], 4);
 
   ctx.beginPath();
   ctx.moveTo(-w * 0.25, -1);
@@ -349,7 +306,7 @@ function drawEquineHead(
   y: number,
   scale: number,
   traits: UnicornTraits,
-  shades: Shades,
+  shades: Coat,
   t: number
 ) {
   // The head is deliberately constructed as an elongated side-profile path.
@@ -372,14 +329,14 @@ function drawEquineHead(
   ctx.quadraticCurveTo(x - headLen * 0.43, y + skullH * 0.20, x - headLen * 0.50, y - skullH * 0.08); // cheek
   ctx.quadraticCurveTo(x - headLen * 0.53, y - skullH * 0.30, x - headLen * 0.42, y - skullH * 0.42); // poll
   ctx.closePath();
-  fillStroke(ctx, shades.base, shades.outline, 5);
+  fillStroke(ctx, shades[COAT_BASE], shades[COAT_OUTLINE], 5);
 
   // Subtle cheek plane reinforces the horse skull rather than a round cartoon face.
   ctx.beginPath();
   ctx.moveTo(x - headLen * 0.34, y - skullH * 0.15);
   ctx.quadraticCurveTo(x - headLen * 0.10, y - skullH * 0.02, x - headLen * 0.18, y + skullH * 0.28);
   ctx.quadraticCurveTo(x - headLen * 0.32, y + skullH * 0.18, x - headLen * 0.34, y - skullH * 0.15);
-  ctx.fillStyle = shades.dark;
+  ctx.fillStyle = shades[COAT_DARK];
   ctx.globalAlpha = 0.28;
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -407,13 +364,13 @@ function drawEquineHead(
   // Nostril at the end of the long muzzle.
   const nostrilX = x + headLen * 0.77;
   const nostrilY = y + skullH * 0.20;
-  ctx.fillStyle = rgba('#3a2a4a', 0.62);
+  ctx.fillStyle = '#3a2a4a9e';
   ctx.beginPath();
   ctx.ellipse(nostrilX, nostrilY, 4.5 * scale, 2.7 * scale, -0.25, 0, Math.PI * 2);
   ctx.fill();
 
   // Simple mouth line and chin highlight.
-  ctx.strokeStyle = rgba(INK_OUTLINE, 0.7);
+  ctx.strokeStyle = '#241a38b3';
   ctx.lineWidth = 2.2 * scale;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -498,7 +455,7 @@ function drawHorn(
     const f = i / (HORN_TURNS * 2);
     const yy = -f * h;
     const ww = w * (1 - f) + 1;
-    ctx.strokeStyle = rgba(palette[i % palette.length], 0.9);
+    ctx.strokeStyle = palette[i % palette.length] + 'e6';
     ctx.lineWidth = 2.4;
     ctx.beginPath();
     ctx.moveTo(-ww, yy + 5);
@@ -528,19 +485,19 @@ function drawBody(
   bodyY: number,
   bodyRx: number,
   bodyRy: number,
-  shades: Shades,
+  shades: Coat,
   traits: UnicornTraits
 ) {
   // Barrel with a slightly deeper chest and lifted rump.
   bodyPath(ctx, bodyX, bodyY, bodyRx, bodyRy);
-  fillStroke(ctx, shades.base, shades.outline, 5);
+  fillStroke(ctx, shades[COAT_BASE], shades[COAT_OUTLINE], 5);
 
   // Chest plane.
   ctx.beginPath();
   ctx.moveTo(bodyX - bodyRx * 0.84, bodyY - bodyRy * 0.25);
   ctx.quadraticCurveTo(bodyX - bodyRx * 0.65, bodyY + bodyRy * 0.02, bodyX - bodyRx * 0.64, bodyY + bodyRy * 0.52);
   ctx.quadraticCurveTo(bodyX - bodyRx * 0.78, bodyY + bodyRy * 0.44, bodyX - bodyRx * 0.84, bodyY - bodyRy * 0.25);
-  ctx.fillStyle = shades.dark;
+  ctx.fillStyle = shades[COAT_DARK];
   ctx.globalAlpha = 0.22;
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -626,7 +583,7 @@ export function drawUnicorn(
   const neckTopY = bodyY - 105 * s;
   const neckLen = 92 * s;
 
-  const shades = shadeSet(traits.coat);
+  const shades = traits.coat;
 
   drawGroundShadow(ctx, 110 * s, bodyX + 8 * s, groundY + 5, 110 * s, 110 * s * 0.25, 'rgba(20,10,30,0.24)');
 
@@ -649,7 +606,7 @@ export function drawUnicorn(
   ctx.quadraticCurveTo(neckBaseX + 16 * s, neckBaseY - 1 * s, neckBaseX + 34 * s, neckBaseY + 32 * s);
   ctx.quadraticCurveTo(neckBaseX + 19 * s, neckBaseY + 62 * s, neckBaseX - 28 * s, neckBaseY + 18 * s);
   ctx.closePath();
-  fillStroke(ctx, shades.base, shades.outline, 5);
+  fillStroke(ctx, shades[COAT_BASE], shades[COAT_OUTLINE], 5);
 
   // Neck highlight plane.
   ctx.beginPath();
@@ -657,7 +614,7 @@ export function drawUnicorn(
   ctx.quadraticCurveTo(neckTopX - 13 * s, neckTopY + 20 * s, neckTopX + 2 * s, neckTopY + 12 * s);
   ctx.quadraticCurveTo(neckBaseX + 7 * s, neckBaseY + 20 * s, neckBaseX + 4 * s, neckBaseY + 42 * s);
   ctx.quadraticCurveTo(neckBaseX - 10 * s, neckBaseY + 31 * s, neckBaseX - 12 * s, neckBaseY + 12 * s);
-  ctx.fillStyle = shades.light;
+  ctx.fillStyle = shades[COAT_LIGHT];
   ctx.globalAlpha = 0.3;
   ctx.fill();
   ctx.globalAlpha = 1;
