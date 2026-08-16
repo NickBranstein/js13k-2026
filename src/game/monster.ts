@@ -1,7 +1,7 @@
 // Procedural monster generation. Same seed -> trait pattern as unicorn.ts,
 // generalized so it can be reused by the dungeon encounter system later.
 
-import { mulberry32, pick, range } from './rng';
+import { mulberry32, range } from './rng';
 import { hslToHex } from '../render/shared';
 
 export interface MonsterPalette {
@@ -51,6 +51,7 @@ export const enum SwarmVariant { Swarm, Cloud, Flurry }
 export interface MonsterTraits {
   seed: number;
   archetypeIndex: Archetype;
+  prefixIndex: number;
   variant: number;
   name: string;
   namePrefix: string;
@@ -153,10 +154,37 @@ const BASE_STATS: { hp: number; atk: number; def: number }[] = [
   /* Swarm */ { hp: 24, atk: 9, def: 3 },
 ];
 
+// A fixed, non-random representative of one (archetype, prefix, variant)
+// combo — used for the Bestiary's portraits.
+export function archetypePreview(archetypeIndex: number, prefixIndex: number, variant: number): MonsterTraits {
+  const [namePrefix, paletteSeed] = NAME_PREFIXES[archetypeIndex][prefixIndex];
+  const nameSuffix = NAME_SUFFIXES[archetypeIndex][variant];
+  const base = BASE_STATS[archetypeIndex];
+  return {
+    seed: 0,
+    archetypeIndex,
+    prefixIndex,
+    variant,
+    name: `${namePrefix} ${nameSuffix}`,
+    namePrefix,
+    palette: derivePalette(paletteSeed),
+    scale: 1,
+    hp: base.hp,
+    maxHp: base.hp,
+    atk: base.atk,
+    def: base.def,
+    isBoss: false,
+  };
+}
+
 export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): MonsterTraits {
   const rng = mulberry32(seed >>> 0);
   const archetypeIndex = Math.floor(rng() * 9) as Archetype;
-  const [namePrefix, paletteSeed] = pick(rng, NAME_PREFIXES[archetypeIndex]);
+  // Rolled by index (not pick()) so the index survives onto MonsterTraits for
+  // the Bestiary to track — behaviorally identical rng() consumption to
+  // pick(), since pick() does exactly this internally.
+  const prefixIndex = Math.floor(rng() * 4);
+  const [namePrefix, paletteSeed] = NAME_PREFIXES[archetypeIndex][prefixIndex];
   const palette = derivePalette(paletteSeed);
   const variant = Math.floor(rng() * 3);
   const nameSuffix = NAME_SUFFIXES[archetypeIndex][variant];
@@ -173,6 +201,7 @@ export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): 
   return {
     seed,
     archetypeIndex,
+    prefixIndex,
     variant,
     name,
     namePrefix,

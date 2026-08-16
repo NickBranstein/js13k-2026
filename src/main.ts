@@ -1,6 +1,7 @@
 import { generateUnicornTraits, drawUnicorn, type UnicornTraits } from './render/unicorn';
-import { generateMonsterTraits, type MonsterTraits } from './game/monster';
+import { generateMonsterTraits, archetypePreview, type MonsterTraits } from './game/monster';
 import { loadLifetimeStats, recordRun, type LifetimeStats } from './game/stats';
+import { loadEncountered, markEncountered, variantKey } from './game/bestiary';
 import { drawMonster } from './render/monster';
 import { drawTreasureChest, drawTrapFloor } from './render/event';
 import {
@@ -18,7 +19,7 @@ import {
   drawMuteToggle,
   muteToggleWidth,
 } from './render/ui';
-import { GOLD_TEXT } from './render/shared';
+import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter, RoomType } from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
 import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
@@ -74,6 +75,9 @@ let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 let selected = 0;
 let lifetimeStats: LifetimeStats = loadLifetimeStats();
+let bestiaryOpen = false;
+let bestiaryPage = 0; // page N is archetype N — see game/bestiary.ts's variantKey comment
+const encountered = loadEncountered();
 
 // Set when a mutation item is found; consumed the next time the player would
 // otherwise advance a floor, showing the reveal screen (then the transform
@@ -242,6 +246,7 @@ function enterFloor(): void {
     const monsterSeed = monsterSeedFor(runSeed, floor);
     // Only -1 (not RoomType.Monster's 0) means boss.
     monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter < RoomType.Monster);
+    markEncountered(encountered, monsterTraits.archetypeIndex, monsterTraits.prefixIndex, monsterTraits.variant);
     battle = createBattle(player, monsterToCombatant(monsterTraits), monsterSeed);
     displayedEnemyHp = battle.enemy.hp;
     state = GameState.Battle;
@@ -467,6 +472,15 @@ window.addEventListener('keydown', (e) => {
     toggleMute();
     return;
   }
+  if (e.key === 'b' || e.key === 'B' || (e.key === 'Escape' && bestiaryOpen)) {
+    bestiaryOpen = !bestiaryOpen;
+    return;
+  }
+  if (bestiaryOpen) {
+    if (e.key === 'ArrowLeft' || e.key === 'a') bestiaryPage = (bestiaryPage + 8) % 9;
+    else if (e.key === 'ArrowRight' || e.key === 'd') bestiaryPage = (bestiaryPage + 1) % 9;
+    return;
+  }
   if (fadePhase !== FadePhase.None) return;
   const advance = e.key === 'Enter' || e.key === ' ';
   const options = currentMenuOptions();
@@ -498,8 +512,25 @@ function canvasPoint(e: MouseEvent): [number, number] {
 // The audio engine lazily unlocks on first sound played from a user
 // gesture, and click qualifies just like keydown does.
 canvas.addEventListener('click', (e) => {
-  if (fadePhase !== FadePhase.None) return;
   const [mx, my] = canvasPoint(e);
+
+  if (bestiaryOpen) {
+    // Prev/next arrow hit zones, positioned to match drawBestiary's '‹'/'›'
+    // glyphs at the panel's top-left/top-right corners — generously sized
+    // (50x50) for comfortable tapping. Any other tap closes the panel.
+    const [bx, by, bw] = bestiaryPanelRect();
+    if (mx >= bx + 7 && mx <= bx + 57 && my >= by + 7 && my <= by + 57) {
+      bestiaryPage = (bestiaryPage + 8) % ARCHETYPE_COUNT;
+      return;
+    }
+    if (mx >= bx + bw - 57 && mx <= bx + bw - 7 && my >= by + 7 && my <= by + 57) {
+      bestiaryPage = (bestiaryPage + 1) % ARCHETYPE_COUNT;
+      return;
+    }
+    bestiaryOpen = false;
+    return;
+  }
+  if (fadePhase !== FadePhase.None) return;
 
   if (state !== GameState.Title) {
     const mtw = muteToggleWidth(context, isMuted());
@@ -507,6 +538,13 @@ canvas.addEventListener('click', (e) => {
     // y=16, height 34 — see muteToggleWidth's comment in render/ui.ts.
     if (mx >= 1264 - mtw && mx <= 1264 && my >= 16 && my <= 50) {
       toggleMute();
+      return;
+    }
+    // Bestiary button sits 10px left of the mute toggle — see
+    // drawBestiaryButton's comment.
+    const btw = bestiaryButtonWidth();
+    if (mx >= 1264 - mtw - 10 - btw && mx <= 1264 - mtw - 10 && my >= 16 && my <= 50) {
+      bestiaryOpen = true;
       return;
     }
   }
@@ -524,6 +562,164 @@ canvas.addEventListener('click', (e) => {
   playConfirm();
   confirmSelection();
 });
+
+// Small round "B" button, same visual family as the mute toggle — gives
+// mouse/touch users a way to open the Bestiary (keydown 'B' otherwise).
+const BESTIARY_LABEL = '[B]estiary';
+
+// Same pill shape/sizing as muteToggleWidth's toggle, just a different label.
+function bestiaryButtonWidth(): number {
+  context.font = '600 16px sans-serif';
+  return context.measureText(BESTIARY_LABEL).width + 28;
+}
+
+function drawBestiaryButton(): void {
+  const mtw = muteToggleWidth(context, isMuted());
+  const bw = bestiaryButtonWidth();
+  // 1264 - mtw is the mute toggle's left edge (see muteToggleWidth's comment
+  // in render/ui.ts); this button sits another 10px gap to the left of that.
+  const x = 1264 - mtw - 10 - bw;
+  const y = 16;
+  const h = 34;
+  context.beginPath();
+  context.roundRect(x, y, bw, h, h / 2);
+  context.fillStyle = 'rgba(53,32,84,0.85)';
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = PANEL_BORDER;
+  context.stroke();
+
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.font = '600 16px sans-serif';
+  context.fillStyle = TEXT_COLOR;
+  context.fillText(BESTIARY_LABEL, x + bw / 2, y + h / 2 + 1);
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
+}
+
+const ARCHETYPE_COUNT = 9;
+const BESTIARY_PREFIXES = 4;
+const BESTIARY_VARIANTS = 3;
+const BESTIARY_COL_W = 220;
+const BESTIARY_ROW_H = 180;
+const BESTIARY_HEADER_H = 100;
+const BESTIARY_SCALE = 0.55;
+
+// Display names for the Bestiary's page title — must stay in the same order
+// as game/monster.ts's Archetype enum / MONSTER_DRAWERS.
+const ARCHETYPE_NAMES = ['Blob', 'Quadruped', 'Avian', 'Arachnid', 'Crystal', 'Sea Creature', 'Flora', 'Robot', 'Swarm'];
+
+// Fixed panel geometry, computed once and reused by both drawBestiary and
+// the click handler's prev/next arrow hit-testing below.
+function bestiaryPanelRect(): [number, number, number, number] {
+  const bw = BESTIARY_COL_W * BESTIARY_PREFIXES + 40;
+  const bh = BESTIARY_HEADER_H + BESTIARY_ROW_H * BESTIARY_VARIANTS + 20;
+  return [1280 / 2 - bw / 2, 720 / 2 - bh / 2, bw, bh];
+}
+
+// One page per archetype (108 total combos = 9 archetypes x 4 prefixes x 3
+// variants — see game/bestiary.ts's variantKey comment), so every combo for
+// the current archetype is shown together before paging to the next one.
+// Each page is a 4 (prefix, across) x 3 (variant, down) grid; all 12
+// portraits share one archetype, so its base stats are shown once at the
+// top rather than repeated in every cell.
+function drawBestiary(t: number): void {
+  if (!bestiaryOpen) return;
+  context.fillStyle = 'rgba(10,6,18,0.6)';
+  context.fillRect(0, 0, 1280, 720);
+
+  const [bx, by, bw, bh] = bestiaryPanelRect();
+  const a = bestiaryPage;
+
+  context.beginPath();
+  context.roundRect(bx, by, bw, bh, 18);
+  context.fillStyle = 'rgba(53,32,84,0.95)';
+  context.fill();
+  context.lineWidth = 2.5;
+  context.strokeStyle = PANEL_BORDER;
+  context.stroke();
+
+  context.textAlign = 'center';
+  context.fillStyle = TEXT_COLOR;
+  context.font = '700 22px sans-serif';
+  context.textBaseline = 'top';
+  context.fillText('Bestiary', 1280 / 2, by + 12);
+
+  context.font = '700 17px sans-serif';
+  context.fillStyle = 'rgba(244,236,255,0.85)';
+  context.fillText(`${ARCHETYPE_NAMES[a]}s`, 1280 / 2, by + 40);
+
+  let anySeen = false;
+  for (let p = 0; p < BESTIARY_PREFIXES && !anySeen; p++) {
+    for (let v = 0; v < BESTIARY_VARIANTS; v++) {
+      if (encountered.has(variantKey(a, p, v))) {
+        anySeen = true;
+        break;
+      }
+    }
+  }
+  const base = archetypePreview(a, 0, 0);
+  context.font = '600 13px sans-serif';
+  context.fillStyle = 'rgba(244,236,255,0.75)';
+  context.fillText(
+    anySeen ? `HP ${base.hp}  ·  ATK ${base.atk}  ·  DEF ${base.def}` : 'HP ???  ·  ATK ???  ·  DEF ???',
+    1280 / 2,
+    by + 66
+  );
+
+  // Prev/next arrows, at the panel's own top-left/top-right corners —
+  // hit-tested in the click handler using the same bestiaryPanelRect() +
+  // fixed offsets.
+  context.textBaseline = 'middle';
+  context.font = '700 28px sans-serif';
+  context.fillStyle = TEXT_COLOR;
+  context.fillText('‹', bx + 32, by + 32);
+  context.fillText('›', bx + bw - 32, by + 32);
+
+  // Page indicator, bottom-right of the panel.
+  context.textAlign = 'right';
+  context.textBaseline = 'alphabetic';
+  context.font = '600 13px sans-serif';
+  context.fillText(`${a + 1}/${ARCHETYPE_COUNT}`, bx + bw - 16, by + bh - 14);
+
+  const gx = bx + 20;
+  const gy = by + BESTIARY_HEADER_H;
+
+  for (let p = 0; p < BESTIARY_PREFIXES; p++) {
+    const colMidX = gx + p * BESTIARY_COL_W + BESTIARY_COL_W / 2;
+
+    for (let v = 0; v < BESTIARY_VARIANTS; v++) {
+      const rowY = gy + v * BESTIARY_ROW_H;
+
+      if (encountered.has(variantKey(a, p, v))) {
+        const preview = archetypePreview(a, p, v);
+        context.save();
+        context.translate(colMidX, rowY + 80);
+        context.scale(BESTIARY_SCALE, BESTIARY_SCALE);
+        drawMonster(context, 0, 0, preview, t);
+        context.restore();
+
+        context.textAlign = 'center';
+        context.textBaseline = 'top';
+        context.font = '600 12px sans-serif';
+        context.fillStyle = TEXT_COLOR;
+        context.fillText(preview.name, colMidX, rowY + BESTIARY_ROW_H - 20);
+      } else {
+        context.fillStyle = 'rgba(255,255,255,0.08)';
+        context.beginPath();
+        context.roundRect(colMidX - 55, rowY + 15, 110, 130, 12);
+        context.fill();
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = '700 30px sans-serif';
+        context.fillStyle = 'rgba(244,236,255,0.4)';
+        context.fillText('?', colMidX, rowY + 78);
+      }
+    }
+  }
+  context.textAlign = 'left';
+}
 
 function drawFadeOverlay(t: number): void {
   if (fadePhase === FadePhase.None) return;
@@ -579,11 +775,13 @@ function render(): void {
       const titleMenu = menuBounds()!;
       drawMenu(context, titleMenu[0], titleMenu[1], titleMenu[2], titleMenu[3], currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
+      drawBestiary(t);
       if (__DEV__) drawDevTools(context, 1280);
       return;
     }
 
     drawMuteToggle(context, isMuted());
+    drawBestiaryButton();
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
@@ -740,6 +938,7 @@ function render(): void {
       drawMenu(context, mb[0], mb[1], mb[2], mb[3], menuOptions, selected, mb[4], charmGlow, t);
     }
     drawFadeOverlay(t);
+    drawBestiary(t);
     if (__DEV__) drawDevTools(context, 1280);
 }
 
