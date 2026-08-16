@@ -15,7 +15,6 @@ import { drawMenu } from '../render/ui';
 import {
   COATS,
   MANE_MOODS,
-  moodStops,
   MANE_STYLES,
   PATTERNS,
   EYE_COLORS,
@@ -100,7 +99,7 @@ function labCategories(): LabCategory[] {
       ),
       apply: (t, idx) => {
         const [i, j] = manePairs()[idx];
-        t.maneStops = i === j ? moodStops(MANE_MOODS[i]) : moodStops(MANE_MOODS[i]).concat(moodStops(MANE_MOODS[j]));
+        t.maneStops = i === j ? MANE_MOODS[i].stops.slice() : MANE_MOODS[i].stops.concat(MANE_MOODS[j].stops);
       },
     },
     {
@@ -115,7 +114,7 @@ function labCategories(): LabCategory[] {
       name: 'Horn Mood',
       values: MANE_MOODS.map((m) => m.name),
       apply: (t, i) => {
-        const stops = moodStops(MANE_MOODS[i]);
+        const stops = MANE_MOODS[i].stops;
         t.hornPalette = [stops[0], stops[1] ?? stops[0]];
       },
     },
