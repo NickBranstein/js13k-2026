@@ -21,7 +21,14 @@ import {
   maxLogScroll,
 } from './render/ui';
 import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
-import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
+import {
+  generateFloorEncounter,
+  resolveTrap,
+  resolveTreasure,
+  ROOM_MONSTER,
+  ROOM_TREASURE,
+  type FloorEncounter,
+} from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
 import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
 import { handleDevKeydown, drawDevTools } from './dev/devtools';
@@ -47,6 +54,8 @@ import {
   playerCharm,
   isVulnerable,
   isBattleOver,
+  PHASE_DEFEAT,
+  PHASE_VICTORY,
   type Combatant,
   type BattleState,
 } from './game/battle';
@@ -57,7 +66,19 @@ const context = canvas.getContext('2d')!;
 const GAME_TITLE = '🦄 Rainbow Depths';
 const GAME_SUBTITLE = 'A procedural unicorn dungeon crawl';
 
-type GameState = 'Title' | 'Battle' | 'Event' | 'MutationReveal' | 'MutationTransform' | 'GameOver';
+const STATE_TITLE = 0;
+const STATE_BATTLE = 1;
+const STATE_EVENT = 2;
+const STATE_REVEAL = 3;
+const STATE_TRANSFORM = 4;
+const STATE_GAME_OVER = 5;
+type GameState =
+  | typeof STATE_TITLE
+  | typeof STATE_BATTLE
+  | typeof STATE_EVENT
+  | typeof STATE_REVEAL
+  | typeof STATE_TRANSFORM
+  | typeof STATE_GAME_OVER;
 
 let runSeed = 0;
 let floor = 1;
@@ -65,7 +86,7 @@ let traits: UnicornTraits;
 let player: Combatant;
 let progression: Progression;
 let inventory = 0; // consumable potion count
-let state: GameState = 'Title';
+let state: GameState = STATE_TITLE;
 let encounter: FloorEncounter;
 let monsterTraits: MonsterTraits | undefined;
 let battle: BattleState | undefined;
@@ -88,7 +109,7 @@ const TRANSFORM_DURATION = 1600;
 
 function tryAdvanceOrReveal(): void {
   if (pendingMutationReveal) {
-    state = 'MutationReveal';
+    state = STATE_REVEAL;
     return;
   }
   advanceFloor();
@@ -120,15 +141,18 @@ let enemyHitAnimStart: number | null = null;
 // Screen transitions swap state at the midpoint of a fade — one mechanism
 // covers Title<->Battle and Battle/Event->GameOver instead of hard cuts.
 // Floor advances are instant (no transition).
-type FadePhase = 'none' | 'out' | 'in';
-let fadePhase: FadePhase = 'none';
+const FADE_NONE = 0;
+const FADE_OUT = 1;
+const FADE_IN = 2;
+type FadePhase = typeof FADE_NONE | typeof FADE_OUT | typeof FADE_IN;
+let fadePhase: FadePhase = FADE_NONE;
 let fadeStart = 0;
 let pendingAction: (() => void) | null = null;
 const FADE_DURATION = 220;
 
 function transitionTo(action: () => void): void {
   pendingAction = action;
-  fadePhase = 'out';
+  fadePhase = FADE_OUT;
   fadeStart = performance.now();
 }
 
@@ -149,22 +173,22 @@ function rewardRngFor(offset: number): () => number {
 // Command bar options for the current state — the same menu box drives combat
 // actions, treasure collect/leave, and advancing to the next floor.
 function currentMenuOptions(): string[] {
-  if (state === 'Title') return ['Start'];
-  if (state === 'MutationReveal') return ['Continue'];
-  if (state === 'MutationTransform') {
+  if (state === STATE_TITLE) return ['Start'];
+  if (state === STATE_REVEAL) return ['Continue'];
+  if (state === STATE_TRANSFORM) {
     return transformStart !== null && performance.now() - transformStart < TRANSFORM_DURATION ? [] : ['Continue'];
   }
-  if (state === 'GameOver') return ['New Run', 'Title Screen'];
-  if (state === 'Battle') {
+  if (state === STATE_GAME_OVER) return ['New Run', 'Title Screen'];
+  if (state === STATE_BATTLE) {
     if (!battle) return [];
-    if (isBattleOver(battle)) return battle.phase === 'Defeat' ? ['Continue'] : ['Proceed'];
+    if (isBattleOver(battle)) return battle.phase === PHASE_DEFEAT ? ['Continue'] : ['Proceed'];
     const options = ['Attack'];
     if (inventory > 0) options.push('Potion');
     options.push('Charm');
     return options;
   }
-  // state === 'Event'
-  if (encounter.type === 'Treasure' && !eventChoiceMade) return ['Collect', 'Leave'];
+  // state === STATE_EVENT
+  if (encounter.type === ROOM_TREASURE && !eventChoiceMade) return ['Collect', 'Leave'];
   return ['Proceed'];
 }
 
@@ -181,13 +205,13 @@ interface MenuRect {
 
 function menuBounds(): MenuRect | null {
   const modalCenterY = canvas.height / 2;
-  if (state === 'Title') {
+  if (state === STATE_TITLE) {
     return { x: canvas.width / 2 - 68, y: canvas.height - 140, w: 136, h: 48, centered: true };
   }
-  if (state === 'MutationReveal') {
+  if (state === STATE_REVEAL) {
     return { x: canvas.width / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
   }
-  if (state === 'MutationTransform') {
+  if (state === STATE_TRANSFORM) {
     if (currentMenuOptions().length === 0) return null;
     return { x: canvas.width / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
   }
@@ -261,29 +285,29 @@ function enterFloor(): void {
   resetLogScroll();
   resetCombatAnims();
 
-  if (encounter.type === 'Monster') {
+  if (encounter.type === ROOM_MONSTER) {
     const monsterSeed = monsterSeedFor(runSeed, floor);
     monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter.boss);
     battle = createBattle(player, monsterToCombatant(monsterTraits), monsterSeed);
     displayedEnemyHp = battle.enemy.hp;
-    state = 'Battle';
+    state = STATE_BATTLE;
     return;
   }
 
   monsterTraits = undefined;
   battle = undefined;
 
-  if (encounter.type === 'Treasure') {
+  if (encounter.type === ROOM_TREASURE) {
     treasuresFound += 1;
     eventLines = [`Floor ${floor}: Treasure Room`, 'You find a treasure chest. Collect it or leave it behind?'];
-    state = 'Event';
+    state = STATE_EVENT;
   } else {
     trapsFound += 1;
     const result = resolveTrap(runSeed, floor, floor, player.hp);
     player.hp = Math.max(1, player.hp - result.damage);
     eventLines = [`Floor ${floor}: Trap Room`, result.message];
     eventChoiceMade = true;
-    state = 'Event';
+    state = STATE_EVENT;
   }
 }
 
@@ -318,11 +342,11 @@ traits = generateUnicornTraits(Math.floor(Math.random() * 1000000)); // title-sc
 // permanent mutation item. Runs once per battle, right after it's won.
 function maybeGrantBattleRewards(): void {
   if (!battle || battleRewardsGranted || !isBattleOver(battle)) return;
-  if (battle.phase !== 'Victory' && battle.phase !== 'Charmed') return;
+  if (battle.phase < PHASE_VICTORY) return;
   if (!monsterTraits) return;
   battleRewardsGranted = true;
 
-  if (battle.phase === 'Victory') {
+  if (battle.phase === PHASE_VICTORY) {
     playVictory();
     monstersDefeated += 1;
     if (monsterTraits.isBoss) bossesDefeated += 1;
@@ -373,19 +397,19 @@ function confirmSelection(): void {
   const options = currentMenuOptions();
   const choice = options[selected];
 
-  if (state === 'Title') {
+  if (state === STATE_TITLE) {
     transitionTo(startRun);
     return;
   }
 
-  if (state === 'MutationReveal') {
-    state = 'MutationTransform';
+  if (state === STATE_REVEAL) {
+    state = STATE_TRANSFORM;
     transformStart = performance.now();
     selected = 0;
     return;
   }
 
-  if (state === 'MutationTransform') {
+  if (state === STATE_TRANSFORM) {
     pendingMutationReveal = null;
     pendingMutationBefore = null;
     transformStart = null;
@@ -393,11 +417,11 @@ function confirmSelection(): void {
     return;
   }
 
-  if (state === 'GameOver') {
+  if (state === STATE_GAME_OVER) {
     if (choice === 'Title Screen') {
       transitionTo(() => {
         stopAmbient();
-        state = 'Title';
+        state = STATE_TITLE;
         traits = generateUnicornTraits(Math.floor(Math.random() * 1000000));
         selected = 0;
       });
@@ -407,10 +431,10 @@ function confirmSelection(): void {
     return;
   }
 
-  if (state === 'Battle') {
+  if (state === STATE_BATTLE) {
     if (!battle) return;
     if (isBattleOver(battle)) {
-      if (battle.phase === 'Defeat') {
+      if (battle.phase === PHASE_DEFEAT) {
         playDefeat();
         stopAmbient();
         transitionTo(() => {
@@ -423,7 +447,7 @@ function confirmSelection(): void {
             trapsFound,
             rainbowFruitsFound,
           });
-          state = 'GameOver';
+          state = STATE_GAME_OVER;
           selected = 0;
         });
       } else {
@@ -454,8 +478,8 @@ function confirmSelection(): void {
     return;
   }
 
-  // state === 'Event'
-  if (encounter.type === 'Treasure' && !eventChoiceMade) {
+  // state === STATE_EVENT
+  if (encounter.type === ROOM_TREASURE && !eventChoiceMade) {
     if (choice === 'Collect') {
       const result = resolveTreasure(runSeed, floor, TREASURE_MUTATION_CHANCE);
       player.hp = Math.min(player.maxHp, player.hp + result.heal);
@@ -477,7 +501,7 @@ function confirmSelection(): void {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (__DEV__ && handleDevKeydown(e, { state, traits, player, grantPotion: () => (inventory += 1) })) {
+  if (__DEV__ && handleDevKeydown(e, { isTitle: state === STATE_TITLE, traits, player, grantPotion: () => (inventory += 1) })) {
     return;
   }
   if (e.key === 'm' || e.key === 'M') {
@@ -489,7 +513,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (howToOpen) return;
-  if (fadePhase !== 'none') return;
+  if (fadePhase !== FADE_NONE) return;
   const advance = e.key === 'Enter' || e.key === ' ';
   const options = currentMenuOptions();
   if (options.length === 0) return;
@@ -520,12 +544,12 @@ function canvasPoint(e: MouseEvent): { x: number; y: number } {
 canvas.addEventListener(
   'wheel',
   (e) => {
-    if (state === 'Title') return;
+    if (state === STATE_TITLE) return;
     const { x: mx, y: my } = canvasPoint(e);
     if (mx < LOG_X || mx > LOG_X + LOG_W || my < LOG_Y || my > LOG_Y + LOG_H) return;
 
     e.preventDefault();
-    const lines = state === 'Battle' && battle ? battle.log : state === 'Event' ? eventLines : gameOverLines;
+    const lines = state === STATE_BATTLE && battle ? battle.log : state === STATE_EVENT ? eventLines : gameOverLines;
     const max = maxLogScroll(lines.length, LOG_H);
     logScroll = Math.min(max, Math.max(0, logScroll + Math.sign(e.deltaY)));
     autoFollowLog = logScroll >= max;
@@ -543,10 +567,10 @@ canvas.addEventListener('click', (e) => {
     howToOpen = false;
     return;
   }
-  if (fadePhase !== 'none') return;
+  if (fadePhase !== FADE_NONE) return;
   const { x: mx, y: my } = canvasPoint(e);
 
-  if (state !== 'Title') {
+  if (state !== STATE_TITLE) {
     const mtb = muteToggleBounds(context, canvas.width - 16, 16, isMuted());
     if (mx >= mtb.x && mx <= mtb.x + mtb.w && my >= mtb.y && my <= mtb.y + mtb.h) {
       toggleMute();
@@ -611,9 +635,9 @@ function drawHowTo(): void {
 }
 
 function drawFadeOverlay(t: number): void {
-  if (fadePhase === 'none') return;
+  if (fadePhase === FADE_NONE) return;
   const progress = Math.min(1, (t - fadeStart) / FADE_DURATION);
-  const alpha = fadePhase === 'out' ? progress : 1 - progress;
+  const alpha = fadePhase === FADE_OUT ? progress : 1 - progress;
   context.fillStyle = `rgba(20,12,32,${alpha})`;
   context.fillRect(0, 0, canvas.width, canvas.height);
 }
@@ -634,19 +658,19 @@ function drawBackdrop() {
 function render(): void {
     const t = performance.now();
 
-    if (fadePhase === 'out' && t - fadeStart >= FADE_DURATION) {
+    if (fadePhase === FADE_OUT && t - fadeStart >= FADE_DURATION) {
       pendingAction?.();
       pendingAction = null;
-      fadePhase = 'in';
+      fadePhase = FADE_IN;
       fadeStart = t;
-    } else if (fadePhase === 'in' && t - fadeStart >= FADE_DURATION) {
-      fadePhase = 'none';
+    } else if (fadePhase === FADE_IN && t - fadeStart >= FADE_DURATION) {
+      fadePhase = FADE_NONE;
     }
 
     drawBackdrop();
     const uiScale = canvas.height / 600;
 
-    if (state === 'Title') {
+    if (state === STATE_TITLE) {
       context.save();
       context.translate(canvas.width / 2, canvas.height * 0.72);
       context.scale(uiScale * 1.4, uiScale * 1.4);
@@ -678,7 +702,7 @@ function render(): void {
     const playerShakeX = playerHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * (1 - playerHitP) : 0;
     const playerShakeY = playerHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * 0.5 * (1 - playerHitP) : 0;
 
-    if (state !== 'MutationTransform') {
+    if (state !== STATE_TRANSFORM) {
       context.save();
       context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, canvas.height * 0.62 + playerShakeY);
       context.scale(uiScale, uiScale);
@@ -686,7 +710,7 @@ function render(): void {
       context.restore();
     }
 
-    if (state === 'Battle' && monsterTraits) {
+    if (state === STATE_BATTLE && monsterTraits) {
       const enemyLunge = animOffset(enemyAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
       const enemyHitP = animProgress(enemyHitAnimStart, t, HIT_DURATION);
       const enemyShakeX = enemyHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * (1 - enemyHitP) : 0;
@@ -697,14 +721,14 @@ function render(): void {
       context.scale(uiScale, uiScale);
       drawMonster(context, 0, 0, monsterTraits, t);
       context.restore();
-    } else if (state === 'Event') {
+    } else if (state === STATE_EVENT) {
       context.save();
       context.translate(ENEMY_SPRITE_X, canvas.height * 0.5);
       context.scale(uiScale, uiScale);
-      if (encounter.type === 'Treasure') drawTreasureChest(context, 0, 0, t);
+      if (encounter.type === ROOM_TREASURE) drawTreasureChest(context, 0, 0, t);
       else drawTrapFloor(context, 0, 0, t);
       context.restore();
-    } else if (state === 'GameOver') {
+    } else if (state === STATE_GAME_OVER) {
       drawRunSummary(
         context,
         canvas.width / 2,
@@ -725,7 +749,7 @@ function render(): void {
       );
     }
 
-    if (state !== 'GameOver') {
+    if (state !== STATE_GAME_OVER) {
       drawFloorBadge(context, canvas.width / 2, 16, floor, encounter.boss);
     }
 
@@ -733,7 +757,7 @@ function render(): void {
     if (Math.abs(player.hp - displayedPlayerHp) < 0.4) displayedPlayerHp = player.hp;
     drawHpBar(context, PLAYER_HP_X, 80, HP_BAR_W, 26, player, displayedPlayerHp, progression.level);
 
-    if (state === 'Battle' && battle) {
+    if (state === STATE_BATTLE && battle) {
       displayedEnemyHp += (battle.enemy.hp - displayedEnemyHp) * HP_TWEEN_RATE;
       if (Math.abs(battle.enemy.hp - displayedEnemyHp) < 0.4) displayedEnemyHp = battle.enemy.hp;
       drawHpBar(context, ENEMY_HP_X, 80, HP_BAR_W, 26, battle.enemy, displayedEnemyHp);
@@ -748,7 +772,7 @@ function render(): void {
       ['POT', inventory],
     ]);
 
-    const currentLog = state === 'Battle' && battle ? battle.log : state === 'Event' ? eventLines : gameOverLines;
+    const currentLog = state === STATE_BATTLE && battle ? battle.log : state === STATE_EVENT ? eventLines : gameOverLines;
     if (autoFollowLog) logScroll = maxLogScroll(currentLog.length, LOG_H);
     drawLog(
       context,
@@ -758,18 +782,18 @@ function render(): void {
       LOG_H,
       currentLog,
       logScroll,
-      state === 'Battle' ? vulnerableMessageLogIndex : -1,
+      state === STATE_BATTLE ? vulnerableMessageLogIndex : -1,
       vulnerableMessageAnimStart,
       t
     );
 
     const modalCenterY = canvas.height / 2;
 
-    if (state === 'MutationReveal' && pendingMutationReveal) {
+    if (state === STATE_REVEAL && pendingMutationReveal) {
       context.fillStyle = 'rgba(10,6,18,0.45)';
       context.fillRect(0, 0, canvas.width, canvas.height);
       drawMutationReveal(context, canvas.width / 2, modalCenterY, 680, 380, pendingMutationReveal.name, pendingMutationReveal.detail, t);
-    } else if (state === 'MutationTransform' && pendingMutationBefore && pendingMutationReveal) {
+    } else if (state === STATE_TRANSFORM && pendingMutationBefore && pendingMutationReveal) {
       const progress = transformStart === null ? 1 : Math.min(1, (t - transformStart) / TRANSFORM_DURATION);
       const tcx = canvas.width / 2;
       const tcy = modalCenterY;
@@ -823,7 +847,7 @@ function render(): void {
     const mb = menuBounds();
     if (mb) {
       const charmGlow =
-        state === 'Battle' && battle && !isBattleOver(battle) && isVulnerable(battle.enemy)
+        state === STATE_BATTLE && battle && !isBattleOver(battle) && isVulnerable(battle.enemy)
           ? menuOptions.indexOf('Charm')
           : -1;
       drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);

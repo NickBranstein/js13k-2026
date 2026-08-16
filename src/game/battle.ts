@@ -14,7 +14,19 @@ export interface Combatant {
   charisma: number;
 }
 
-export type BattlePhase = 'PlayerTurn' | 'EnemyTurn' | 'Victory' | 'Defeat' | 'Charmed';
+const PHASE_PLAYER = 0;
+const PHASE_ENEMY = 1;
+// Terminal phases stay contiguous so battle-over/reward checks are single comparisons.
+export const PHASE_DEFEAT = 2;
+export const PHASE_VICTORY = 3;
+const PHASE_CHARMED = 4;
+
+export type BattlePhase =
+  | typeof PHASE_PLAYER
+  | typeof PHASE_ENEMY
+  | typeof PHASE_DEFEAT
+  | typeof PHASE_VICTORY
+  | typeof PHASE_CHARMED;
 
 export interface BattleState {
   player: Combatant;
@@ -32,7 +44,7 @@ export function createBattle(player: Combatant, enemy: Combatant, seed: number):
   return {
     player,
     enemy,
-    phase: 'PlayerTurn',
+    phase: PHASE_PLAYER,
     log: [`A wild ${enemy.name} appears!`],
     rng: mulberry32(seed >>> 0),
   };
@@ -46,12 +58,12 @@ function rollDamage(state: BattleState, attacker: Combatant, defender: Combatant
 
 function checkEnd(state: BattleState): boolean {
   if (state.enemy.hp <= 0) {
-    state.phase = 'Victory';
+    state.phase = PHASE_VICTORY;
     logLine(state, `${state.enemy.name} is defeated!`);
     return true;
   }
   if (state.player.hp <= 0) {
-    state.phase = 'Defeat';
+    state.phase = PHASE_DEFEAT;
     logLine(state, `${state.player.name} has fallen...`);
     return true;
   }
@@ -59,16 +71,16 @@ function checkEnd(state: BattleState): boolean {
 }
 
 function enemyTurn(state: BattleState): void {
-  state.phase = 'EnemyTurn';
+  state.phase = PHASE_ENEMY;
   const dmg = rollDamage(state, state.enemy, state.player);
   state.player.hp = Math.max(0, state.player.hp - dmg);
   logLine(state, `${state.enemy.name} attacks for ${dmg}!`);
   if (checkEnd(state)) return;
-  state.phase = 'PlayerTurn';
+  state.phase = PHASE_PLAYER;
 }
 
 export function playerAttack(state: BattleState): void {
-  if (state.phase !== 'PlayerTurn') return;
+  if (state.phase !== PHASE_PLAYER) return;
   const dmg = rollDamage(state, state.player, state.enemy);
   state.enemy.hp = Math.max(0, state.enemy.hp - dmg);
   logLine(state, `${state.player.name} attacks for ${dmg}!`);
@@ -79,7 +91,7 @@ export function playerAttack(state: BattleState): void {
 const POTION_HEAL_PCT = 0.4;
 
 export function playerUseItem(state: BattleState): void {
-  if (state.phase !== 'PlayerTurn') return;
+  if (state.phase !== PHASE_PLAYER) return;
   const heal = Math.round(state.player.maxHp * POTION_HEAL_PCT);
   const healed = Math.min(state.player.maxHp, state.player.hp + heal) - state.player.hp;
   state.player.hp += healed;
@@ -104,10 +116,10 @@ export function charmChance(player: Combatant, enemy: Combatant): number {
 }
 
 export function playerCharm(state: BattleState): void {
-  if (state.phase !== 'PlayerTurn') return;
+  if (state.phase !== PHASE_PLAYER) return;
   const success = chance(state.rng, charmChance(state.player, state.enemy) * 0.01);
   if (success) {
-    state.phase = 'Charmed';
+    state.phase = PHASE_CHARMED;
     logLine(state, `${state.enemy.name} is charmed and befriended!`);
     return;
   }
@@ -116,5 +128,5 @@ export function playerCharm(state: BattleState): void {
 }
 
 export function isBattleOver(state: BattleState): boolean {
-  return state.phase === 'Victory' || state.phase === 'Defeat' || state.phase === 'Charmed';
+  return state.phase >= PHASE_DEFEAT;
 }

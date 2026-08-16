@@ -3,7 +3,11 @@
 
 import { mulberry32, chance } from './rng';
 
-export type RoomType = 'Monster' | 'Treasure' | 'Trap';
+export const ROOM_MONSTER = 0;
+export const ROOM_TREASURE = 1;
+const ROOM_TRAP = 2;
+
+export type RoomType = typeof ROOM_MONSTER | typeof ROOM_TREASURE | typeof ROOM_TRAP;
 
 export interface FloorEncounter {
   floor: number;
@@ -17,16 +21,16 @@ const BOSS_INTERVAL = 10;
 
 export function generateFloorEncounter(runSeed: number, floor: number): FloorEncounter {
   if (floor % BOSS_INTERVAL === 0) {
-    return { floor, type: 'Monster', boss: true };
+    return { floor, type: ROOM_MONSTER, boss: true };
   }
 
   // deterministic per (run, floor) — same run seed always produces the same sequence
   const rng = mulberry32((runSeed ^ (floor * 0x9e3779b1)) >>> 0);
   const roll = rng();
   let type: RoomType;
-  if (roll < TRAP_CHANCE) type = 'Trap';
-  else if (roll < TRAP_CHANCE + TREASURE_CHANCE) type = 'Treasure';
-  else type = 'Monster';
+  if (roll < TRAP_CHANCE) type = ROOM_TRAP;
+  else if (roll < TRAP_CHANCE + TREASURE_CHANCE) type = ROOM_TREASURE;
+  else type = ROOM_MONSTER;
 
   return { floor, type, boss: false };
 }
