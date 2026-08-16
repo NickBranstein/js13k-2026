@@ -1,25 +1,26 @@
 # 🦄 Rainbow Depths
 
-A procedural unicorn dungeon crawl, built for [js13kGames 2026](https://js13kgames.com/)
+A unicorn dungeon crawl, built for [js13kGames 2026](https://js13kgames.com/)
 — theme "unicorns and rainbows" — under the 13,312-byte (zipped) budget.
 
 **[▶ Try it](https://nickbranstein.github.io/js13k-2026/)**
 
-Descend a linear sequence of dungeon floors as a procedurally generated unicorn,
-fighting turn-based, menu-driven battles against procedurally generated monsters
-(10 archetypes, each with its own suffix-driven silhouette variants). Everything
-is drawn from code and seeded traits — no sprite sheets, no external assets, no
-network requests. Permadeath: HP persists across floors, and a run ends when it
-runs out.
+Descend a linear sequence of dungeon floors as your unicorn, fighting turn-based,
+menu-driven battles against monsters drawn from 9 hand-authored archetypes, each
+with its own color, name, and shape-variant combinations randomized from a seed.
+Everything is drawn from code — no sprite sheets, no external assets, no network
+requests. Permadeath: HP persists across floors, and a run ends when it runs out.
 
 ## Controls
 
 - **↑ / ↓** or **W / S** — move the command-bar selection
 - **Enter** or **Space** — confirm the selected option
 - **M** — mute / unmute audio
+- **B** — open/close the Bestiary (**←** / **→** or **A** / **D** to page through it)
+- Mouse/touch: click or tap a command-bar row to select and confirm it in one step
 
 Every screen (battle actions, Treasure Collect/Leave, floor advances, menus)
-is driven by the same keyboard-only command bar.
+is driven by the same command bar.
 
 ### The gist
 
@@ -29,8 +30,14 @@ is driven by the same keyboard-only command bar.
 - **Treasure** rooms heal on Collect and have a chance to drop a permanent
   "Rainbow Fruit" mutation item, which alters both a stat and the unicorn's look.
 - **Trap** rooms always hurt, but never enough to end the run outright.
-- Boss floors (every 10th floor) are boosted monster encounters and always drop
-  a Rainbow Fruit on defeat.
+- Boss floors (every 10th floor) are boosted monster encounters. Defeating one
+  drops a Rainbow Fruit, and dying afterward drops one random Mysterious item
+  (Dust / Dew / Essence / Fragment); collecting one of each permanently boosts
+  your starting stats on future runs.
+- The **Bestiary** tracks every archetype/color/variant combination you've
+  encountered across runs, and the Title screen remembers your best floor
+  reached and how many Mysterious sets you've completed — all persisted
+  locally, nothing leaves the browser.
 
 ## Development
 
@@ -60,18 +67,24 @@ src/
   game/            game logic, no canvas code
     rng.ts           shared seeded RNG (mulberry32) + roll helpers
     battle.ts          turn-based battle state machine
-    monster.ts           procedural monster trait generation (10 archetypes)
+    monster.ts           monster trait generation (9 archetypes x color x variant)
     dungeon.ts             linear floor sequence generation
     item.ts                  consumables + permanent mutation items
     progression.ts             player leveling/XP
+    stats.ts                     lifetime cross-run stats (localStorage)
+    bestiary.ts                    archetype/color/variant discovery tracking
+    dust.ts                          Mysterious item collection + permanent boosts
   render/          canvas drawing, no game logic
     unicorn.ts         player unicorn renderer
     monster.ts            monster archetype renderers
-    ui.ts                    HP bars, menus, log, badges, modal panels
-    event.ts                   treasure/trap room visuals
-    fx.ts                        combat animation timing + impact bursts
+    shared.ts                shared color/shape/path helpers
+    ui.ts                       HP bars, menus, log, badges, modal panels
+    event.ts                      treasure/trap room visuals
+    fx.ts                           combat animation timing + impact bursts
   audio/
     audio.ts         WebAudio-generated SFX + ambient music (no sample files)
+  dev/
+    devtools.ts      dev-only debug panels, fully stripped from the built game
   html/
     index.html      unminified template, inlined into the build output
 tools/
