@@ -1,6 +1,7 @@
 import { generateUnicornTraits, drawUnicorn, type UnicornTraits } from './render/unicorn';
 import { generateMonsterTraits, archetypePreview, type MonsterTraits } from './game/monster';
 import { loadLifetimeStats, recordRun, type LifetimeStats } from './game/stats';
+import { loadHeld, loadCashedIns, grantDust, dustBonusTotals, ITEM_NAMES } from './game/dust';
 import { loadEncountered, markEncountered, variantKey } from './game/bestiary';
 import { drawMonster } from './render/monster';
 import { drawTreasureChest, drawTrapFloor } from './render/event';
@@ -73,8 +74,11 @@ let battleRewardsGranted = false;
 let eventLines: string[] = [];
 let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
+let dustMessage = '';
 let selected = 0;
 let lifetimeStats: LifetimeStats = loadLifetimeStats();
+let heldDust = loadHeld();
+let dustCashedIns = loadCashedIns();
 let bestiaryOpen = false;
 let bestiaryPage = 0; // page N is archetype N — see game/bestiary.ts's variantKey comment
 const encountered = loadEncountered();
@@ -279,6 +283,14 @@ function startRun(): void {
   runSeed = Math.floor(Math.random() * 1000000);
   traits = generateUnicornTraits(runSeed);
   player = { name: 'Unicorn', hp: 80, maxHp: 80, atk: 16, def: 10, charisma: 20 };
+  // Permanent cross-run bonuses from cashed-in Mysterious Dust sets — see
+  // game/dust.ts. bonus is [maxHp, atk, def, charisma].
+  const bonus = dustBonusTotals(dustCashedIns);
+  player.maxHp += bonus[0];
+  player.hp += bonus[0];
+  player.atk += bonus[1];
+  player.def += bonus[2];
+  player.charisma += bonus[3];
   progression = createProgression();
   inventory = 0;
   floor = 1;
@@ -398,6 +410,17 @@ function confirmSelection(): void {
         stopAmbient();
         transitionTo(() => {
           gameOverLines = [...battle!.log, `Fell on Floor ${floor}.`];
+          // A mystery only drops for a run that defeated at least one boss —
+          // makes the drop feel earned rather than a guaranteed consolation
+          // prize for every death.
+          if (bossesDefeated > 0) {
+            // [kind, cashedIn, cashedIns] — see game/dust.ts's DropResult.
+            const [kind, cashedIn, cashedIns] = grantDust(heldDust, dustCashedIns);
+            dustCashedIns = cashedIns;
+            dustMessage = `✨ Mysterious ${ITEM_NAMES[kind]} found${cashedIn ? ' — collection complete!' : '.'}`;
+          } else {
+            dustMessage = '';
+          }
           lifetimeStats = recordRun(lifetimeStats, {
             floor,
             level: progression.level,
@@ -772,6 +795,13 @@ function render(): void {
         context.fillText(`🏆 Best Floor: ${lifetimeStats.bestFloor}`, 1280 - 48, 720 - 48);
         context.textAlign = 'left';
       }
+      if (dustCashedIns > 0) {
+        context.font = '700 16px sans-serif';
+        context.fillStyle = GOLD_TEXT;
+        context.textAlign = 'right';
+        context.fillText(`✨ Mysteries Found: ${dustCashedIns}`, 1280 - 48, 720 - 24);
+        context.textAlign = 'left';
+      }
       const titleMenu = menuBounds()!;
       drawMenu(context, titleMenu[0], titleMenu[1], titleMenu[2], titleMenu[3], currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
@@ -831,7 +861,8 @@ function render(): void {
           rainbowFruitsFound,
         },
         lifetimeStats,
-        t
+        t,
+        dustMessage
       );
     }
 

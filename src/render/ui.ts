@@ -425,7 +425,8 @@ export function drawRunSummary(
   h: number,
   stats: RunStats,
   lifetime: LifetimeStats,
-  t: number
+  t: number,
+  dustMessage = ''
 ): void {
   drawGoldPanel(ctx, centerX, centerY, w, h, t);
   const x = centerX - w / 2;
@@ -469,6 +470,13 @@ export function drawRunSummary(
     ctx.font = '600 16px sans-serif';
     ctx.fillText(String(lifeVal), colLifeX, rowY);
   });
+
+  if (dustMessage) {
+    ctx.textAlign = 'center';
+    ctx.font = '600 15px sans-serif';
+    ctx.fillStyle = GOLD_TEXT;
+    ctx.fillText(dustMessage, centerX, y + h - 24);
+  }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
