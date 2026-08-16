@@ -3,17 +3,6 @@
 
 import { mulberry32, pick, range } from './rng';
 
-export type Archetype =
-  | 'Blob'
-  | 'Quadruped'
-  | 'Avian'
-  | 'Arachnid'
-  | 'Crystal'
-  | 'SeaCreature'
-  | 'Flora'
-  | 'Robot'
-  | 'Swarm';
-
 export interface MonsterPalette {
   base: string;
   light: string;
@@ -22,10 +11,10 @@ export interface MonsterPalette {
 
 export interface MonsterTraits {
   seed: number;
-  archetype: Archetype;
+  archetypeIndex: number;
+  variant: number;
   name: string;
   namePrefix: string;
-  nameSuffix: string;
   palette: MonsterPalette;
   scale: number;
   hp: number;
@@ -35,27 +24,9 @@ export interface MonsterTraits {
   isBoss: boolean;
 }
 
-const ARCHETYPES: Archetype[] = [
-  'Blob',
-  'Quadruped',
-  'Avian',
-  'Arachnid',
-  'Crystal',
-  'SeaCreature',
-  'Flora',
-  'Robot',
-  'Swarm',
-];
-
-// The four tables below are indexed positionally in lockstep with
-// ARCHETYPES (index 0 = Blob, 1 = Quadruped, ...) rather than keyed by the
-// archetype's name string. That's deliberate: Terser's build-time property
-// mangling can't tell a fixed-schema object apart from a string-keyed
-// lookup table, so keying by a name that's also picked at runtime as plain
-// data (see generateMonsterTraits below) would silently desync the two.
-// Indexing by array position sidesteps the problem entirely — no property
-// name is ever looked up by a runtime string, so there's nothing to keep in
-// sync with the mangler's reserved list in tools/build.mjs.
+// These tables and render/monster.ts's drawer table are indexed in lockstep
+// (0 = Blob, 1 = Quadruped, ...). Keeping that index numeric avoids shipping
+// an archetype-name table and a string-based renderer switch.
 
 // Each entry pairs a name prefix with its palette directly (previously a
 // separate PALETTE_BY_PREFIX lookup keyed by prefix name) — the two were
@@ -145,10 +116,10 @@ const BASE_STATS: { hp: number; atk: number; def: number }[] = [
 
 export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): MonsterTraits {
   const rng = mulberry32(seed >>> 0);
-  const archetypeIndex = Math.floor(rng() * ARCHETYPES.length);
-  const archetype = ARCHETYPES[archetypeIndex];
+  const archetypeIndex = Math.floor(rng() * 9);
   const [namePrefix, palette] = pick(rng, NAME_PREFIXES[archetypeIndex]);
-  const nameSuffix = pick(rng, NAME_SUFFIXES[archetypeIndex]);
+  const variant = Math.floor(rng() * 3);
+  const nameSuffix = NAME_SUFFIXES[archetypeIndex][variant];
   const name = isBoss ? `Ferocious ${namePrefix} ${nameSuffix}` : `${namePrefix} ${nameSuffix}`;
   const bossStatMul = isBoss ? 1.4 : 1;
   const scale = range(rng, 0.9, 1.3) * (isBoss ? 1.35 : 1);
@@ -161,10 +132,10 @@ export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): 
 
   return {
     seed,
-    archetype,
+    archetypeIndex,
+    variant,
     name,
     namePrefix,
-    nameSuffix,
     palette,
     scale,
     hp,
