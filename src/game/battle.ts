@@ -115,6 +115,8 @@ export function playerCharm(state: BattleState): void {
   enemyTurn(state);
 }
 
+// Victory/Defeat/Charmed are the contiguous, highest-valued phases (in that
+// order), so "battle over" collapses to a single range check.
 export function isBattleOver(state: BattleState): boolean {
-  return state.phase === BattlePhase.Victory || state.phase === BattlePhase.Defeat || state.phase === BattlePhase.Charmed;
+  return state.phase >= BattlePhase.Victory;
 }

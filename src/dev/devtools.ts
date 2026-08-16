@@ -27,7 +27,7 @@ import { MUTATION_ITEMS } from '../game/item';
 import type { Combatant } from '../game/battle';
 
 export interface DevToolsHost {
-  state: number;
+  isTitle: boolean;
   traits: UnicornTraits;
   player: Combatant | undefined;
   grantPotion: () => void;
@@ -180,7 +180,7 @@ function cycleLabValue(dir: number, host: DevToolsHost): void {
 // Returns true if the key was consumed by a dev panel, so main.ts's own
 // keydown handling knows to stop (matches the pre-refactor behavior).
 export function handleDevKeydown(e: KeyboardEvent, host: DevToolsHost): boolean {
-  if (e.key === '`' && host.state !== 0) {
+  if (e.key === '`' && !host.isTitle) {
     debugOpen = !debugOpen;
     labOpen = false;
     return true;

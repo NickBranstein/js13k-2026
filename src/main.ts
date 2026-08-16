@@ -178,18 +178,18 @@ interface MenuRect {
 }
 
 function menuBounds(): MenuRect | null {
-  const modalCenterY = canvas.height / 2;
+  const modalCenterY = 720 / 2;
   if (state === GameState.Title) {
-    return { x: canvas.width / 2 - 68, y: canvas.height - 140, w: 136, h: 48, centered: true };
+    return { x: 1280 / 2 - 68, y: 720 - 140, w: 136, h: 48, centered: true };
   }
   if (state === GameState.MutationReveal) {
-    return { x: canvas.width / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
+    return { x: 1280 / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
   }
   if (state === GameState.MutationTransform) {
     if (currentMenuOptions().length === 0) return null;
-    return { x: canvas.width / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
+    return { x: 1280 / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
   }
-  return { x: canvas.width - 340, y: canvas.height - 200, w: 284, h: 150, centered: false };
+  return { x: 1280 - 340, y: 720 - 200, w: 284, h: 150, centered: false };
 }
 
 // stats panel sits to the left of the combat log, both aligned to the same
@@ -199,8 +199,8 @@ const STATS_PANEL_W = 78;
 
 // combat log panel geometry — kept in sync with the drawLog() call below
 const LOG_X = STATS_PANEL_X + STATS_PANEL_W + 12;
-const LOG_Y = canvas.height - 200;
-const LOG_W = canvas.width - 400 - (LOG_X - 56);
+const LOG_Y = 720 - 200;
+const LOG_W = 1280 - 400 - (LOG_X - 56);
 const LOG_H = 150;
 
 // level badge sits directly above the stats panel, same column
@@ -211,7 +211,7 @@ const LEVEL_BADGE_Y = LOG_Y - LEVEL_BADGE_GAP - LEVEL_BADGE_H;
 // HP bar geometry — sprites are centered under their matching bar
 const HP_BAR_W = 340;
 const PLAYER_HP_X = 56;
-const ENEMY_HP_X = canvas.width - 396;
+const ENEMY_HP_X = 1280 - 396;
 const PLAYER_SPRITE_X = PLAYER_HP_X + HP_BAR_W / 2;
 const ENEMY_SPRITE_X = ENEMY_HP_X + HP_BAR_W / 2;
 
@@ -457,7 +457,7 @@ function confirmSelection(): void {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (__DEV__ && handleDevKeydown(e, { state, traits, player, grantPotion: () => (inventory += 1) })) {
+  if (__DEV__ && handleDevKeydown(e, { isTitle: state === GameState.Title, traits, player, grantPotion: () => (inventory += 1) })) {
     return;
   }
   if (e.key === 'm' || e.key === 'M') {
@@ -482,13 +482,13 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Maps a mouse/touch event's client coordinates onto canvas-space pixels,
-// accounting for the CSS-scaled display size (canvas.width/height are the
-// fixed internal resolution, not the on-screen size).
+// accounting for the CSS-scaled display size (1280x720 is the fixed internal
+// resolution, not the on-screen size).
 function canvasPoint(e: MouseEvent): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
   return {
-    x: (e.clientX - rect.left) * (canvas.width / rect.width),
-    y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    x: (e.clientX - rect.left) * (1280 / rect.width),
+    y: (e.clientY - rect.top) * (720 / rect.height),
   };
 }
 
@@ -502,7 +502,7 @@ canvas.addEventListener('click', (e) => {
   const { x: mx, y: my } = canvasPoint(e);
 
   if (state !== GameState.Title) {
-    const mtb = muteToggleBounds(context, canvas.width - 16, 16, isMuted());
+    const mtb = muteToggleBounds(context, 1280 - 16, 16, isMuted());
     if (mx >= mtb.x && mx <= mtb.x + mtb.w && my >= mtb.y && my <= mtb.y + mtb.h) {
       toggleMute();
       return;
@@ -527,19 +527,19 @@ function drawFadeOverlay(t: number): void {
   const progress = Math.min(1, (t - fadeStart) / FADE_DURATION);
   const alpha = fadePhase === FadePhase.Out ? progress : 1 - progress;
   context.fillStyle = `rgba(20,12,32,${alpha})`;
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillRect(0, 0, 1280, 720);
 }
 
 function drawBackdrop() {
-  const sky = context.createLinearGradient(0, 0, 0, canvas.height * 0.72);
+  const sky = context.createLinearGradient(0, 0, 0, 720 * 0.72);
   sky.addColorStop(0, '#dff1ff');
   sky.addColorStop(1, '#fbeaff');
   context.fillStyle = sky;
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillRect(0, 0, 1280, 720);
 
   context.fillStyle = '#eadcff';
   context.beginPath();
-  context.ellipse(canvas.width / 2, canvas.height * 0.82 + 90, canvas.width * 0.72, 110, 0, 0, Math.PI * 2);
+  context.ellipse(1280 / 2, 720 * 0.82 + 90, 1280 * 0.72, 110, 0, 0, Math.PI * 2);
   context.fill();
 }
 
@@ -556,11 +556,11 @@ function render(): void {
     }
 
     drawBackdrop();
-    const uiScale = canvas.height / 600;
+    const uiScale = 720 / 600;
 
     if (state === GameState.Title) {
       context.save();
-      context.translate(canvas.width / 2, canvas.height * 0.72);
+      context.translate(1280 / 2, 720 * 0.72);
       context.scale(uiScale * 1.4, uiScale * 1.4);
       drawUnicorn(context, traits, t);
       context.restore();
@@ -570,17 +570,17 @@ function render(): void {
         context.font = '700 18px sans-serif';
         context.fillStyle = GOLD_TEXT;
         context.textAlign = 'right';
-        context.fillText(`🏆 Best Floor: ${lifetimeStats.bestFloor}`, canvas.width - 48, canvas.height - 48);
+        context.fillText(`🏆 Best Floor: ${lifetimeStats.bestFloor}`, 1280 - 48, 720 - 48);
         context.textAlign = 'left';
       }
       const titleMenu = menuBounds()!;
       drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
-      if (__DEV__) drawDevTools(context, canvas.width);
+      if (__DEV__) drawDevTools(context, 1280);
       return;
     }
 
-    drawMuteToggle(context, canvas.width - 16, 16, isMuted());
+    drawMuteToggle(context, 1280 - 16, 16, isMuted());
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
@@ -589,7 +589,7 @@ function render(): void {
 
     if (state !== GameState.MutationTransform) {
       context.save();
-      context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, canvas.height * 0.62 + playerShakeY);
+      context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, 720 * 0.62 + playerShakeY);
       context.scale(uiScale, uiScale);
       drawUnicorn(context, traits, t);
       context.restore();
@@ -602,13 +602,13 @@ function render(): void {
       const enemyShakeY = enemyHitP !== null ? (Math.random() - 0.5) * SHAKE_MAGNITUDE * 0.5 * (1 - enemyHitP) : 0;
 
       context.save();
-      context.translate(ENEMY_SPRITE_X - enemyLunge + enemyShakeX, canvas.height * 0.5 + enemyShakeY);
+      context.translate(ENEMY_SPRITE_X - enemyLunge + enemyShakeX, 720 * 0.5 + enemyShakeY);
       context.scale(uiScale, uiScale);
       drawMonster(context, 0, 0, monsterTraits, t);
       context.restore();
     } else if (state === GameState.Event) {
       context.save();
-      context.translate(ENEMY_SPRITE_X, canvas.height * 0.5);
+      context.translate(ENEMY_SPRITE_X, 720 * 0.5);
       context.scale(uiScale, uiScale);
       if (encounter.type === RoomType.Treasure) drawTreasureChest(context, 0, 0, t);
       else drawTrapFloor(context, 0, 0, t);
@@ -616,8 +616,8 @@ function render(): void {
     } else if (state === GameState.GameOver) {
       drawRunSummary(
         context,
-        canvas.width / 2,
-        canvas.height * 0.44,
+        1280 / 2,
+        720 * 0.44,
         560,
         380,
         {
@@ -635,7 +635,7 @@ function render(): void {
     }
 
     if (state !== GameState.GameOver) {
-      drawFloorBadge(context, canvas.width / 2, 16, floor, encounter.boss);
+      drawFloorBadge(context, 1280 / 2, 16, floor, encounter.boss);
     }
 
     displayedPlayerHp += (player.hp - displayedPlayerHp) * HP_TWEEN_RATE;
@@ -670,21 +670,21 @@ function render(): void {
       t
     );
 
-    const modalCenterY = canvas.height / 2;
+    const modalCenterY = 720 / 2;
 
     if (state === GameState.MutationReveal && pendingMutationReveal) {
       context.fillStyle = 'rgba(10,6,18,0.45)';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      drawMutationReveal(context, canvas.width / 2, modalCenterY, 680, 380, pendingMutationReveal.name, pendingMutationReveal.detail, t);
+      context.fillRect(0, 0, 1280, 720);
+      drawMutationReveal(context, 1280 / 2, modalCenterY, 680, 380, pendingMutationReveal.name, pendingMutationReveal.detail, t);
     } else if (state === GameState.MutationTransform && pendingMutationBefore && pendingMutationReveal) {
       const progress = transformStart === null ? 1 : Math.min(1, (t - transformStart) / TRANSFORM_DURATION);
-      const tcx = canvas.width / 2;
+      const tcx = 1280 / 2;
       const tcy = modalCenterY;
       const tw = 820;
       const th = 520;
 
       context.fillStyle = 'rgba(10,6,18,0.45)';
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillRect(0, 0, 1280, 720);
       drawTransformPanel(context, tcx, tcy, tw, th, t);
 
       // Unicorn geometry stands with feet at the translate origin and its
@@ -736,7 +736,7 @@ function render(): void {
       drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);
     }
     drawFadeOverlay(t);
-    if (__DEV__) drawDevTools(context, canvas.width);
+    if (__DEV__) drawDevTools(context, 1280);
 }
 
 function loop(): void {
