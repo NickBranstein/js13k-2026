@@ -24,12 +24,11 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
 
   drawGroundShadow(ctx, r);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   if (variant === 1) {
     // drippy protrusions hanging from the underside
-    ctx.fillStyle = traits.palette.base;
+    ctx.fillStyle = traits.palette[1];
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 4;
     [-0.5, 0, 0.5].forEach((dx) => {
@@ -56,25 +55,22 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
   } else {
     ctx.ellipse(0, 0, r, r * 0.85, 0, 0, Math.PI * 2);
   }
-  fillStroke(ctx, traits.palette.base);
+  fillStroke(ctx, traits.palette[1]);
 
   ctx.beginPath();
   ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.35, r * 0.25, -0.5, 0, Math.PI * 2);
-  ctx.fillStyle = traits.palette.light;
+  ctx.fillStyle = traits.palette[2];
   ctx.fill();
 
   drawEyes(ctx, 0, -r * 0.05, r * 0.28, r * 0.1);
-  ctx.restore();
 }
 
-function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, palette: MonsterTraits['palette'], t: number): void {
+function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, t: number): void {
   const sway = Math.sin(t / 320) * 0.15;
   const baseX = -bodyR * 0.85;
   const baseY = -bodyR * 0.05;
 
   ctx.strokeStyle = OUTLINE;
-  ctx.fillStyle = palette.dark;
-
   if (variant === 0) {
     // slim whip tail
     ctx.lineWidth = 6;
@@ -104,7 +100,7 @@ function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant
 }
 
 function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, palette: MonsterTraits['palette']): void {
-  ctx.fillStyle = palette.dark;
+  ctx.fillStyle = palette[3];
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 3;
 
@@ -134,7 +130,7 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
   } else {
     // Stag: branching antlers (main beam + one fork per side)
     ctx.lineWidth = 4;
-    ctx.strokeStyle = palette.dark;
+    ctx.strokeStyle = palette[3];
     [bodyR * 0.75, bodyR * 1.0].forEach((ax) => {
       ctx.beginPath();
       ctx.moveTo(ax, -bodyR * 0.5);
@@ -143,7 +139,6 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
       ctx.lineTo(ax - bodyR * 0.2, -bodyR * 0.9);
       ctx.stroke();
     });
-    ctx.strokeStyle = OUTLINE;
   }
 }
 
@@ -154,13 +149,12 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
 
   drawGroundShadow(ctx, bodyR * 1.1);
 
-  ctx.save();
   ctx.translate(0, bob);
 
-  drawQuadrupedTail(ctx, bodyR, variant, traits.palette, t);
+  drawQuadrupedTail(ctx, bodyR, variant, t);
 
   // legs
-  ctx.fillStyle = traits.palette.dark;
+  ctx.fillStyle = traits.palette[3];
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 3;
   const legY = bodyR * 0.55;
@@ -175,17 +169,16 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
   // body
   ctx.beginPath();
   ctx.ellipse(0, 0, bodyR, bodyR * 0.62, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.base);
+  fillStroke(ctx, traits.palette[1]);
 
   // head
   ctx.beginPath();
   ctx.ellipse(bodyR * 0.85, -bodyR * 0.25, bodyR * 0.38, bodyR * 0.32, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.light);
+  fillStroke(ctx, traits.palette[2]);
 
   drawQuadrupedHeadAccessory(ctx, bodyR, variant, traits.palette);
 
   drawEyes(ctx, bodyR * 0.95, -bodyR * 0.3, bodyR * 0.12, bodyR * 0.06);
-  ctx.restore();
 }
 
 function drawWing(ctx: CanvasRenderingContext2D, bodyR: number, flap: number, color: string, big: boolean): void {
@@ -215,18 +208,17 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   drawGroundShadow(ctx, bodyR * 1.1);
 
-  ctx.save();
   ctx.translate(0, bob);
 
-  drawWing(ctx, bodyR, flap - 0.3, traits.palette.dark, wingSpan);
+  drawWing(ctx, bodyR, flap - 0.3, traits.palette[3], wingSpan);
 
   // tail feathers
   const tailFan = variant === 0 ? 3 : 2;
   ctx.strokeStyle = OUTLINE;
-  ctx.fillStyle = traits.palette.dark;
+  ctx.fillStyle = traits.palette[3];
   ctx.lineWidth = 2;
   for (let i = 0; i < tailFan; i++) {
-    const a = (i / (tailFan - 1 || 1) - 0.5) * 0.8;
+    const a = (i / (tailFan - 1) - 0.5) * 0.8;
     ctx.beginPath();
     ctx.moveTo(-bodyR * 0.7, 0);
     ctx.lineTo(-bodyR * (1.3 + tailFan * 0.1), Math.sin(a) * bodyR * 0.5);
@@ -238,7 +230,7 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   // legs + a small branching talon fork at the foot — same open-branch motif
   // as the Quadruped Stag's antlers, shared across all three suffixes.
-  ctx.strokeStyle = traits.palette.dark;
+  ctx.strokeStyle = traits.palette[3];
   ctx.lineWidth = 3;
   [-0.15, 0.15].forEach((lx) => {
     ctx.beginPath();
@@ -253,12 +245,12 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   // body
   ctx.beginPath();
   ctx.ellipse(0, 0, bodyR, bodyR * 0.8, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.base);
+  fillStroke(ctx, traits.palette[1]);
 
   // head
   ctx.beginPath();
   ctx.ellipse(bodyR * 0.85, -bodyR * 0.4, bodyR * 0.3, bodyR * 0.27, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.light);
+  fillStroke(ctx, traits.palette[2]);
 
   if (variant === 2) {
     // crest feather
@@ -282,9 +274,8 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   ctx.fill();
   ctx.stroke();
 
-  drawWing(ctx, bodyR, flap, traits.palette.base, wingSpan);
+  drawWing(ctx, bodyR, flap, traits.palette[1], wingSpan);
   drawEyes(ctx, bodyR * 0.9, -bodyR * 0.45, bodyR * 0.1, bodyR * 0.05);
-  ctx.restore();
 }
 
 function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -295,11 +286,10 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
 
   drawGroundShadow(ctx, bodyR * 2.4 * legLen);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   // legs: 4 per side, bent at a knee point
-  ctx.strokeStyle = traits.palette.dark;
+  ctx.strokeStyle = traits.palette[3];
   ctx.lineWidth = 3 * s;
   ctx.lineCap = 'round';
   for (let side = -1; side <= 1; side += 2) {
@@ -322,11 +312,11 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
   // abdomen (rear) + cephalothorax (front)
   ctx.beginPath();
   ctx.ellipse(-bodyR * 0.5, 0, bodyR * (variant === 2 ? 0.9 : 0.7), bodyR * 0.6, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.base);
+  fillStroke(ctx, traits.palette[1]);
 
   ctx.beginPath();
   ctx.ellipse(bodyR * 0.5, -bodyR * 0.1, bodyR * 0.45, bodyR * 0.4, 0, 0, Math.PI * 2);
-  fillStroke(ctx, traits.palette.light);
+  fillStroke(ctx, traits.palette[2]);
 
   if (variant === 0) {
     // trailing web line
@@ -339,7 +329,6 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
   }
 
   drawEyes(ctx, bodyR * 0.6, -bodyR * 0.15, bodyR * 0.16, bodyR * 0.06);
-  ctx.restore();
 }
 
 function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -350,7 +339,6 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
 
   drawGroundShadow(ctx, r);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   // angular gem body — straight-line polygon, no curves
@@ -375,10 +363,10 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
   ctx.beginPath();
   points.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
   ctx.closePath();
-  fillStroke(ctx, traits.palette.base);
+  fillStroke(ctx, traits.palette[1]);
 
   // facet line for depth
-  ctx.strokeStyle = traits.palette.light;
+  ctx.strokeStyle = traits.palette[2];
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(0, points[0][1]);
@@ -387,7 +375,7 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
 
   if (variant === 2) {
     // jagged spike crown
-    ctx.fillStyle = traits.palette.light;
+    ctx.fillStyle = traits.palette[2];
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2;
     for (let i = -1; i <= 1; i++) {
@@ -406,7 +394,6 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
   ctx.beginPath();
   ctx.arc(0, -r * 0.1, r * 0.14, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 }
 
 function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -417,14 +404,13 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
 
   drawGroundShadow(ctx, len * 0.7);
 
-  ctx.save();
   ctx.translate(0, bob);
   ctx.rotate(swim * 0.15);
 
   if (variant === 1) {
     // round shell body + pincers + short legs
     const scuttle = Math.sin(t / 200) * 3 * s;
-    ctx.strokeStyle = traits.palette.dark;
+    ctx.strokeStyle = traits.palette[3];
     ctx.lineWidth = 3 * s;
     for (let i = 0; i < 3; i++) {
       const lx = (i - 1) * len * 0.35;
@@ -435,12 +421,12 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     }
     ctx.beginPath();
     ctx.ellipse(0, 0, len * 0.55, len * 0.4, 0, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
     // pincers
     [-1, 1].forEach((side) => {
       ctx.beginPath();
       ctx.ellipse(side * len * 0.6, -len * 0.15, len * 0.2, len * 0.14, side * 0.4, 0, Math.PI * 2);
-      fillStroke(ctx, traits.palette.light);
+      fillStroke(ctx, traits.palette[2]);
     });
     drawEyes(ctx, 0, -len * 0.35, len * 0.14, len * 0.05);
   } else if (variant === 0) {
@@ -451,9 +437,9 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     ctx.quadraticCurveTo(-len * 0.65, 0, -len * 0.4, len * 0.15);
     ctx.quadraticCurveTo(len * 0.1, len * (0.55 - swim), len * 0.7, 0);
     ctx.closePath();
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
     // tail
-    ctx.strokeStyle = traits.palette.dark;
+    ctx.strokeStyle = traits.palette[3];
     ctx.lineWidth = 4 * s;
     ctx.beginPath();
     ctx.moveTo(-len * 0.55, 0);
@@ -468,18 +454,16 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     ctx.quadraticCurveTo(-len * 0.75, 0, -len * 0.55, len * 0.12 - swim * len);
     ctx.quadraticCurveTo(len * 0.2, len * 0.3, len * 0.75, 0);
     ctx.closePath();
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
     // dorsal fin
     ctx.beginPath();
     ctx.moveTo(-len * 0.05, -len * 0.22);
     ctx.lineTo(len * 0.15, -len * 0.5);
     ctx.lineTo(len * 0.3, -len * 0.22);
     ctx.closePath();
-    fillStroke(ctx, traits.palette.dark);
+    fillStroke(ctx, traits.palette[3]);
     drawEyes(ctx, len * 0.45, -len * 0.02, len * 0.07, len * 0.035);
   }
-
-  ctx.restore();
 }
 
 function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -489,11 +473,10 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   drawGroundShadow(ctx, stemH * 0.5);
 
-  ctx.save();
   ctx.rotate(sway);
 
   // roots
-  ctx.strokeStyle = traits.palette.dark;
+  ctx.strokeStyle = traits.palette[3];
   ctx.lineWidth = 3 * s;
   [-0.3, 0, 0.3].forEach((rx) => {
     ctx.beginPath();
@@ -503,7 +486,7 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   });
 
   // stem
-  ctx.strokeStyle = traits.palette.base;
+  ctx.strokeStyle = traits.palette[1];
   ctx.lineWidth = 8 * s;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -518,8 +501,8 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     // mushroom dome + gills
     ctx.beginPath();
     ctx.arc(0, 0, stemH * 0.45, Math.PI, 0);
-    fillStroke(ctx, traits.palette.light);
-    ctx.strokeStyle = traits.palette.dark;
+    fillStroke(ctx, traits.palette[2]);
+    ctx.strokeStyle = traits.palette[3];
     ctx.lineWidth = 1.5;
     for (let i = -3; i <= 3; i++) {
       ctx.beginPath();
@@ -540,7 +523,7 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
-    fillStroke(ctx, traits.palette.dark);
+    fillStroke(ctx, traits.palette[3]);
   } else {
     // Bloom: flower petal cap
     const petals = 6;
@@ -550,7 +533,7 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
       ctx.rotate(a);
       ctx.beginPath();
       ctx.ellipse(0, -stemH * 0.32, stemH * 0.16, stemH * 0.3, 0, 0, Math.PI * 2);
-      ctx.fillStyle = i % 2 === 0 ? traits.palette.light : traits.palette.base;
+      ctx.fillStyle = i % 2 === 0 ? traits.palette[2] : traits.palette[1];
       ctx.strokeStyle = OUTLINE;
       ctx.lineWidth = 2;
       ctx.fill();
@@ -559,11 +542,10 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     }
     ctx.beginPath();
     ctx.arc(0, 0, stemH * 0.14, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.dark);
+    fillStroke(ctx, traits.palette[3]);
   }
 
   drawEyes(ctx, 0, stemH * 0.02, stemH * 0.1, stemH * 0.04);
-  ctx.restore();
 }
 
 function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -574,11 +556,10 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   if (variant === 1) {
     const hover = Math.sin(t / 300) * 6 * s;
     drawGroundShadow(ctx, r * 0.7);
-    ctx.save();
     ctx.translate(0, hover - r * 0.3);
 
     // ring
-    ctx.strokeStyle = traits.palette.dark;
+    ctx.strokeStyle = traits.palette[3];
     ctx.lineWidth = 4 * s;
     ctx.beginPath();
     ctx.ellipse(0, r * 0.15, r * 1.1, r * 0.3, 0, 0, Math.PI * 2);
@@ -586,7 +567,7 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
 
     ctx.fillStyle = `rgba(127,224,224,${0.5 + glow * 0.5})`;
     ctx.beginPath();
@@ -595,18 +576,15 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.restore();
     return;
   }
 
   drawGroundShadow(ctx, r * 1.3);
 
-  ctx.save();
-
   if (variant === 2) {
     // wheeled/treaded base + rotating turret top
     const rot = t / 900;
-    ctx.fillStyle = traits.palette.dark;
+    ctx.fillStyle = traits.palette[3];
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -625,9 +603,9 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.rotate(Math.sin(rot) * 0.5);
     ctx.beginPath();
     ctx.roundRect(-r * 0.6, -r * 0.5, r * 1.2, r * 0.7, r * 0.1);
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
     // turret barrel
-    ctx.fillStyle = traits.palette.dark;
+    ctx.fillStyle = traits.palette[3];
     ctx.fillRect(r * 0.5, -r * 0.12, r * 0.5, r * 0.24);
     ctx.strokeRect(r * 0.5, -r * 0.12, r * 0.5, r * 0.24);
     ctx.fillStyle = `rgba(224,180,92,${0.5 + glow * 0.5})`;
@@ -638,7 +616,7 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   } else {
     // Automaton: boxy biped
     const stride = Math.sin(t / 260) * 4 * s;
-    ctx.fillStyle = traits.palette.dark;
+    ctx.fillStyle = traits.palette[3];
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 3;
     [-0.3, 0.3].forEach((lx, i) => {
@@ -657,11 +635,11 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     // torso
     ctx.beginPath();
     ctx.roundRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.0, r * 0.1);
-    fillStroke(ctx, traits.palette.base);
+    fillStroke(ctx, traits.palette[1]);
     // head
     ctx.beginPath();
     ctx.roundRect(-r * 0.32, -r * 1.05, r * 0.64, r * 0.55, r * 0.08);
-    fillStroke(ctx, traits.palette.light);
+    fillStroke(ctx, traits.palette[2]);
     // antenna
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2;
@@ -683,7 +661,6 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.stroke();
   }
 
-  ctx.restore();
 }
 
 function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -705,7 +682,7 @@ function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
-    ctx.fillStyle = i % 2 === 0 ? traits.palette.base : traits.palette.light;
+    ctx.fillStyle = i % 2 === 0 ? traits.palette[1] : traits.palette[2];
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 1.5;
     ctx.fill();
@@ -729,16 +706,11 @@ const MONSTER_DRAWERS = [
 
 export function drawMonster(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
   traits: MonsterTraits,
   t: number
 ): void {
-  ctx.save();
-  ctx.translate(x, y);
   ctx.scale(-1, 1); // archetypes are drawn facing right by convention; flip to face the player on the left
 
   MONSTER_DRAWERS[traits.archetypeIndex](ctx, traits, t, traits.variant);
 
-  ctx.restore();
 }

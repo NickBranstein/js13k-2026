@@ -16,6 +16,7 @@ import {
   COATS,
   COAT_NAME,
   MANE_MOODS,
+  MANE_MOOD_NAMES,
   MANE_STYLES,
   PATTERNS,
   EYE_COLORS,
@@ -96,26 +97,26 @@ function labCategories(): LabCategory[] {
       // the raw base palette list.
       name: 'Mane Combo',
       values: manePairs().map(([i, j]) =>
-        i === j ? MANE_MOODS[i].name : `${MANE_MOODS[i].name} + ${MANE_MOODS[j].name}`
+        i === j ? MANE_MOOD_NAMES[i] : `${MANE_MOOD_NAMES[i]} + ${MANE_MOOD_NAMES[j]}`
       ),
       apply: (t, idx) => {
         const [i, j] = manePairs()[idx];
-        t.maneStops = i === j ? MANE_MOODS[i].stops.slice() : MANE_MOODS[i].stops.concat(MANE_MOODS[j].stops);
+        t.maneStops = i === j ? MANE_MOODS[i].slice() : MANE_MOODS[i].concat(MANE_MOODS[j]);
       },
     },
     {
       name: 'Mane Style',
       values: MANE_STYLES,
       apply: (t, i) => {
-        t.style = MANE_STYLES[i];
-        t.strandCount = t.style === 'Wispy' ? 4 : t.style === 'Braided' ? 5 : 7;
+        t.style = i;
+        t.strandCount = i === 3 ? 4 : i === 2 ? 5 : 7;
       },
     },
     {
       name: 'Horn Mood',
-      values: MANE_MOODS.map((m) => m.name),
+      values: MANE_MOOD_NAMES,
       apply: (t, i) => {
-        const stops = MANE_MOODS[i].stops;
+        const stops = MANE_MOODS[i];
         t.hornPalette = [stops[0], stops[1] ?? stops[0]];
       },
     },

@@ -674,7 +674,7 @@ function render(): void {
       context.save();
       context.translate(1280 / 2, 720 * 0.72);
       context.scale(uiScale * 1.4, uiScale * 1.4);
-      drawUnicorn(context, 0, 0, traits, t);
+      drawUnicorn(context, traits, t);
       context.restore();
 
       drawTitleCard(context, 48, 40, GAME_TITLE, GAME_SUBTITLE, t);
@@ -706,7 +706,7 @@ function render(): void {
       context.save();
       context.translate(PLAYER_SPRITE_X + playerLunge + playerShakeX, 720 * 0.62 + playerShakeY);
       context.scale(uiScale, uiScale);
-      drawUnicorn(context, 0, 0, traits, t);
+      drawUnicorn(context, traits, t);
       context.restore();
     }
 
@@ -719,7 +719,7 @@ function render(): void {
       context.save();
       context.translate(ENEMY_SPRITE_X - enemyLunge + enemyShakeX, 720 * 0.5 + enemyShakeY);
       context.scale(uiScale, uiScale);
-      drawMonster(context, 0, 0, monsterTraits, t);
+      drawMonster(context, monsterTraits, t);
       context.restore();
     } else if (state === STATE_EVENT) {
       context.save();
@@ -815,14 +815,14 @@ function render(): void {
       context.save();
       context.translate(leftX, spriteY);
       context.scale(spriteScale, spriteScale);
-      drawUnicorn(context, 0, 0, pendingMutationBefore, t);
+      drawUnicorn(context, pendingMutationBefore, t);
       context.restore();
 
       context.save();
       context.translate(rightX, spriteY);
       context.scale(spriteScale, spriteScale);
       context.globalAlpha = progress;
-      drawUnicorn(context, 0, 0, traits, t);
+      drawUnicorn(context, traits, t);
       context.globalAlpha = 1;
       context.restore();
 

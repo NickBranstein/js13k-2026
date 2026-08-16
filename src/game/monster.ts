@@ -3,18 +3,13 @@
 
 import { mulberry32, pick, range } from './rng';
 
-export interface MonsterPalette {
-  base: string;
-  light: string;
-  dark: string;
-}
+export type MonsterPalette = [namePrefix: string, base: string, light: string, dark: string];
 
 export interface MonsterTraits {
   seed: number;
   archetypeIndex: number;
   variant: number;
   name: string;
-  namePrefix: string;
   palette: MonsterPalette;
   scale: number;
   hp: number;
@@ -32,60 +27,60 @@ export interface MonsterTraits {
 // separate PALETTE_BY_PREFIX lookup keyed by prefix name) — the two were
 // always 1:1, so pairing them removes a second table that had to be kept in
 // sync by hand whenever a prefix was added.
-const NAME_PREFIXES: [string, MonsterPalette][][] = [
+const NAME_PREFIXES: MonsterPalette[][] = [
   /* Blob */ [
-    ['Shade', { base: '#6b4f8c', light: '#9570c2', dark: '#4a3465' }],
-    ['Murk', { base: '#3e5b4e', light: '#5d8372', dark: '#2b4037' }],
-    ['Gloom', { base: '#4b5668', light: '#6e7a8c', dark: '#333b47' }],
-    ['Sludge', { base: '#6e6a4e', light: '#a29b71', dark: '#4b4735' }],
+    ['Shade', '#6b4f8c', '#9570c2', '#4a3465'],
+    ['Murk', '#3e5b4e', '#5d8372', '#2b4037'],
+    ['Gloom', '#4b5668', '#6e7a8c', '#333b47'],
+    ['Sludge', '#6e6a4e', '#a29b71', '#4b4735'],
   ],
   /* Quadruped */ [
-    ['Bramble', { base: '#4f7d5c', light: '#70a980', dark: '#355a3f' }],
-    ['Ash', { base: '#7a7a7a', light: '#a3a3a3', dark: '#525252' }],
-    ['Iron', { base: '#5c6670', light: '#8a96a3', dark: '#3d454d' }],
-    ['Storm', { base: '#4f6f8c', light: '#709ac2', dark: '#344d65' }],
+    ['Bramble', '#4f7d5c', '#70a980', '#355a3f'],
+    ['Ash', '#7a7a7a', '#a3a3a3', '#525252'],
+    ['Iron', '#5c6670', '#8a96a3', '#3d454d'],
+    ['Storm', '#4f6f8c', '#709ac2', '#344d65'],
   ],
   /* Avian */ [
-    ['Feather', { base: '#5b8ac2', light: '#8bafda', dark: '#3d5d85' }],
-    ['Sky', { base: '#6ea1d8', light: '#9cc1e8', dark: '#4b719b' }],
-    ['Crow', { base: '#3a3a41', light: '#5c5c66', dark: '#26262c' }],
-    ['Gale', { base: '#7c93a2', light: '#a8bbc7', dark: '#566671' }],
+    ['Feather', '#5b8ac2', '#8bafda', '#3d5d85'],
+    ['Sky', '#6ea1d8', '#9cc1e8', '#4b719b'],
+    ['Crow', '#3a3a41', '#5c5c66', '#26262c'],
+    ['Gale', '#7c93a2', '#a8bbc7', '#566671'],
   ],
   /* Arachnid */ [
-    ['Web', { base: '#6c6c75', light: '#92929b', dark: '#494950' }],
-    ['Cave', { base: '#5b4939', light: '#8a715c', dark: '#3c3025' }],
-    ['Widow', { base: '#5b2f3a', light: '#8b505f', dark: '#3d1f26' }],
-    ['Dust', { base: '#a38a5c', light: '#c7b085', dark: '#7d6740' }],
+    ['Web', '#6c6c75', '#92929b', '#494950'],
+    ['Cave', '#5b4939', '#8a715c', '#3c3025'],
+    ['Widow', '#5b2f3a', '#8b505f', '#3d1f26'],
+    ['Dust', '#a38a5c', '#c7b085', '#7d6740'],
   ],
   /* Crystal */ [
-    ['Prism', { base: '#a35bc2', light: '#c68ae0', dark: '#7e3d99' }],
-    ['Quartz', { base: '#daa4c3', light: '#e9c9db', dark: '#a2718d' }],
-    ['Geode', { base: '#5b888b', light: '#80b0b3', dark: '#3d5f61' }],
-    ['Shard', { base: '#7dc2d8', light: '#a6d7e7', dark: '#4e8da2' }],
+    ['Prism', '#a35bc2', '#c68ae0', '#7e3d99'],
+    ['Quartz', '#daa4c3', '#e9c9db', '#a2718d'],
+    ['Geode', '#5b888b', '#80b0b3', '#3d5f61'],
+    ['Shard', '#7dc2d8', '#a6d7e7', '#4e8da2'],
   ],
   /* SeaCreature */ [
-    ['Tide', { base: '#3f8d8d', light: '#5cb2b2', dark: '#2a5b5b' }],
-    ['Coral', { base: '#e17b70', light: '#f0a69e', dark: '#a35148' }],
-    ['Brine', { base: '#4f8c6f', light: '#72b192', dark: '#345b48' }],
-    ['Abyss', { base: '#2f3e5b', light: '#506386', dark: '#1f293d' }],
+    ['Tide', '#3f8d8d', '#5cb2b2', '#2a5b5b'],
+    ['Coral', '#e17b70', '#f0a69e', '#a35148'],
+    ['Brine', '#4f8c6f', '#72b192', '#345b48'],
+    ['Abyss', '#2f3e5b', '#506386', '#1f293d'],
   ],
   /* Flora */ [
-    ['Thorn', { base: '#3e5b2f', light: '#5b8047', dark: '#293d1f' }],
-    ['Moss', { base: '#5d7141', light: '#80995c', dark: '#3d4b2a' }],
-    ['Petal', { base: '#d87da2', light: '#e7a6c0', dark: '#a35272' }],
-    ['Root', { base: '#6e583f', light: '#997c5c', dark: '#4b3c2a' }],
+    ['Thorn', '#3e5b2f', '#5b8047', '#293d1f'],
+    ['Moss', '#5d7141', '#80995c', '#3d4b2a'],
+    ['Petal', '#d87da2', '#e7a6c0', '#a35272'],
+    ['Root', '#6e583f', '#997c5c', '#4b3c2a'],
   ],
   /* Robot */ [
-    ['Rust', { base: '#a2613f', light: '#c7815c', dark: '#7e482a' }],
-    ['Spark', { base: '#c2a33d', light: '#e0c15c', dark: '#987e2a' }],
-    ['Gear', { base: '#79818b', light: '#a3aab2', dark: '#525960' }],
-    ['Copper', { base: '#b1714e', light: '#da9672', dark: '#8b5437' }],
+    ['Rust', '#a2613f', '#c7815c', '#7e482a'],
+    ['Spark', '#c2a33d', '#e0c15c', '#987e2a'],
+    ['Gear', '#79818b', '#a3aab2', '#525960'],
+    ['Copper', '#b1714e', '#da9672', '#8b5437'],
   ],
   /* Swarm */ [
-    ['Gnat', { base: '#a4b25c', light: '#cad982', dark: '#7f8c40' }],
-    ['Pixie', { base: '#c25ba3', light: '#df81c3', dark: '#993d7e' }],
-    ['Motes', { base: '#d8c27d', light: '#ecdaa1', dark: '#a38f52' }],
-    ['Buzz', { base: '#d9993f', light: '#eaaf5d', dark: '#a2702a' }],
+    ['Gnat', '#a4b25c', '#cad982', '#7f8c40'],
+    ['Pixie', '#c25ba3', '#df81c3', '#993d7e'],
+    ['Motes', '#d8c27d', '#ecdaa1', '#a38f52'],
+    ['Buzz', '#d9993f', '#eaaf5d', '#a2702a'],
   ],
 ];
 
@@ -102,22 +97,23 @@ const NAME_SUFFIXES: string[][] = [
 ];
 
 // Base stat blocks per archetype before floor-depth scaling.
-const BASE_STATS: { hp: number; atk: number; def: number }[] = [
-  /* Blob */ { hp: 46, atk: 8, def: 9 },
-  /* Quadruped */ { hp: 38, atk: 11, def: 6 },
-  /* Avian */ { hp: 30, atk: 11, def: 4 },
-  /* Arachnid */ { hp: 26, atk: 12, def: 5 },
-  /* Crystal */ { hp: 52, atk: 9, def: 14 },
-  /* SeaCreature */ { hp: 42, atk: 10, def: 7 },
-  /* Flora */ { hp: 44, atk: 7, def: 10 },
-  /* Robot */ { hp: 40, atk: 10, def: 11 },
-  /* Swarm */ { hp: 24, atk: 9, def: 3 },
+const BASE_STATS: [hp: number, atk: number, def: number][] = [
+  /* Blob */ [46, 8, 9],
+  /* Quadruped */ [38, 11, 6],
+  /* Avian */ [30, 11, 4],
+  /* Arachnid */ [26, 12, 5],
+  /* Crystal */ [52, 9, 14],
+  /* SeaCreature */ [42, 10, 7],
+  /* Flora */ [44, 7, 10],
+  /* Robot */ [40, 10, 11],
+  /* Swarm */ [24, 9, 3],
 ];
 
 export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): MonsterTraits {
   const rng = mulberry32(seed >>> 0);
   const archetypeIndex = Math.floor(rng() * 9);
-  const [namePrefix, palette] = pick(rng, NAME_PREFIXES[archetypeIndex]);
+  const palette = pick(rng, NAME_PREFIXES[archetypeIndex]);
+  const namePrefix = palette[0];
   const variant = Math.floor(rng() * 3);
   const nameSuffix = NAME_SUFFIXES[archetypeIndex][variant];
   const name = isBoss ? `Ferocious ${namePrefix} ${nameSuffix}` : `${namePrefix} ${nameSuffix}`;
@@ -126,16 +122,15 @@ export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): 
 
   const base = BASE_STATS[archetypeIndex];
   const depthMul = (1 + (depth - 1) * 0.08) * bossStatMul;
-  const hp = Math.round(base.hp * depthMul * range(rng, 0.9, 1.1));
-  const atk = Math.round(base.atk * depthMul * range(rng, 0.9, 1.1));
-  const def = Math.round(base.def * depthMul * range(rng, 0.9, 1.1));
+  const hp = Math.round(base[0] * depthMul * range(rng, 0.9, 1.1));
+  const atk = Math.round(base[1] * depthMul * range(rng, 0.9, 1.1));
+  const def = Math.round(base[2] * depthMul * range(rng, 0.9, 1.1));
 
   return {
     seed,
     archetypeIndex,
     variant,
     name,
-    namePrefix,
     palette,
     scale,
     hp,

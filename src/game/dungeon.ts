@@ -10,7 +10,6 @@ const ROOM_TRAP = 2;
 export type RoomType = typeof ROOM_MONSTER | typeof ROOM_TREASURE | typeof ROOM_TRAP;
 
 export interface FloorEncounter {
-  floor: number;
   type: RoomType;
   boss: boolean;
 }
@@ -21,7 +20,7 @@ const BOSS_INTERVAL = 10;
 
 export function generateFloorEncounter(runSeed: number, floor: number): FloorEncounter {
   if (floor % BOSS_INTERVAL === 0) {
-    return { floor, type: ROOM_MONSTER, boss: true };
+    return { type: ROOM_MONSTER, boss: true };
   }
 
   // deterministic per (run, floor) — same run seed always produces the same sequence
@@ -32,7 +31,7 @@ export function generateFloorEncounter(runSeed: number, floor: number): FloorEnc
   else if (roll < TRAP_CHANCE + TREASURE_CHANCE) type = ROOM_TREASURE;
   else type = ROOM_MONSTER;
 
-  return { floor, type, boss: false };
+  return { type, boss: false };
 }
 
 export interface TrapResult {
