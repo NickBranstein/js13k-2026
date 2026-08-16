@@ -17,9 +17,8 @@ import {
   drawLevelBadge,
   drawMuteToggle,
   muteToggleBounds,
-  drawHelpButton,
 } from './render/ui';
-import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
+import { GOLD_TEXT } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter } from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
 import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
@@ -74,7 +73,6 @@ let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 let selected = 0;
 let lifetimeStats: LifetimeStats = loadLifetimeStats();
-let howToOpen = false;
 
 // Set when a mutation item is found; consumed the next time the player would
 // otherwise advance a floor, showing the reveal screen (then the transform
@@ -191,15 +189,6 @@ function menuBounds(): MenuRect | null {
     return { x: canvas.width / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
   }
   return { x: canvas.width - 340, y: canvas.height - 200, w: 284, h: 150, centered: false };
-}
-
-const HELP_BTN_SIZE = 34;
-
-// Shared by drawing and click hit-testing, same as menuBounds — sits just
-// left of the mute toggle, whose width shifts slightly with muted state.
-function helpButtonBounds(): { x: number; y: number; size: number } {
-  const mtb = muteToggleBounds(context, canvas.width - 16, 16, isMuted());
-  return { x: mtb.x - 10 - HELP_BTN_SIZE, y: mtb.y, size: HELP_BTN_SIZE };
 }
 
 // stats panel sits to the left of the combat log, both aligned to the same
@@ -474,11 +463,6 @@ window.addEventListener('keydown', (e) => {
     toggleMute();
     return;
   }
-  if (e.key === 'Escape') {
-    howToOpen = !howToOpen;
-    return;
-  }
-  if (howToOpen) return;
   if (fadePhase !== 'none') return;
   const advance = e.key === 'Enter' || e.key === ' ';
   const options = currentMenuOptions();
@@ -513,10 +497,6 @@ function canvasPoint(e: MouseEvent): { x: number; y: number } {
 // The audio engine lazily unlocks on first sound played from a user
 // gesture, and click qualifies just like keydown does.
 canvas.addEventListener('click', (e) => {
-  if (howToOpen) {
-    howToOpen = false;
-    return;
-  }
   if (fadePhase !== 'none') return;
   const { x: mx, y: my } = canvasPoint(e);
 
@@ -524,11 +504,6 @@ canvas.addEventListener('click', (e) => {
     const mtb = muteToggleBounds(context, canvas.width - 16, 16, isMuted());
     if (mx >= mtb.x && mx <= mtb.x + mtb.w && my >= mtb.y && my <= mtb.y + mtb.h) {
       toggleMute();
-      return;
-    }
-    const hb = helpButtonBounds();
-    if (mx >= hb.x && mx <= hb.x + hb.size && my >= hb.y && my <= hb.y + hb.size) {
-      howToOpen = true;
       return;
     }
   }
@@ -545,44 +520,6 @@ canvas.addEventListener('click', (e) => {
   playConfirm();
   confirmSelection();
 });
-
-const HOW_TO_LINES = [
-  'Arrows / WASD - move selection',
-  'Enter / Space / Tap - confirm',
-  'M - mute',
-  'Charm - chance to befriend; better odds on a weakened foe',
-  'Potion - heals HP in battle',
-  'Esc / Tap Any - close this panel',
-];
-
-function drawHowTo(): void {
-  if (!howToOpen) return;
-  context.fillStyle = 'rgba(10,6,18,0.6)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const hw = 560;
-  const hh = 70 + HOW_TO_LINES.length * 30;
-  const hx = canvas.width / 2 - hw / 2;
-  const hy = canvas.height / 2 - hh / 2;
-  context.beginPath();
-  context.roundRect(hx, hy, hw, hh, 18);
-  context.fillStyle = 'rgba(53,32,84,0.95)';
-  context.fill();
-  context.lineWidth = 2.5;
-  context.strokeStyle = PANEL_BORDER;
-  context.stroke();
-
-  context.textAlign = 'center';
-  context.fillStyle = TEXT_COLOR;
-  context.font = '700 24px sans-serif';
-  context.textBaseline = 'top';
-  context.fillText('How To Play', canvas.width / 2, hy + 22);
-
-  context.textAlign = 'left';
-  context.font = '600 16px sans-serif';
-  HOW_TO_LINES.forEach((line, i) => context.fillText(line, hx + 32, hy + 68 + i * 30));
-  context.textBaseline = 'alphabetic';
-}
 
 function drawFadeOverlay(t: number): void {
   if (fadePhase === 'none') return;
@@ -638,14 +575,11 @@ function render(): void {
       const titleMenu = menuBounds()!;
       drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
-      drawHowTo();
       if (__DEV__) drawDevTools(context, canvas.width);
       return;
     }
 
     drawMuteToggle(context, canvas.width - 16, 16, isMuted());
-    const helpBtn = helpButtonBounds();
-    drawHelpButton(context, helpBtn.x, helpBtn.y, helpBtn.size);
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
@@ -801,7 +735,6 @@ function render(): void {
       drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);
     }
     drawFadeOverlay(t);
-    drawHowTo();
     if (__DEV__) drawDevTools(context, canvas.width);
 }
 

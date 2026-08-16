@@ -50,28 +50,6 @@ export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y:
   ctx.textBaseline = 'alphabetic';
 }
 
-// Small round "?" button, same visual family as the mute toggle — gives
-// mouse/touch users a way to open the how-to-play panel (Escape-only
-// otherwise, which touch devices can't send).
-export function drawHelpButton(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-  const r = size / 2;
-  ctx.beginPath();
-  ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(53,32,84,0.85)';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = PANEL_BORDER;
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '700 16px sans-serif';
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.fillText('?', x + r, y + r + 1);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
 // Shared soft pastel-gradient panel background + border + a gentle top sheen,
 // used by every UI box so they read as one cohesive, rounded style.
 function drawPanelBg(
