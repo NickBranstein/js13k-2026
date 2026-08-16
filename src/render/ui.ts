@@ -214,11 +214,12 @@ export function drawStatsPanel(
     const rowCenterY = y + rowH * i + rowH / 2;
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(244,236,255,0.7)';
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.globalAlpha = 0.7;
     ctx.fillText(label, x + 12, rowCenterY);
+    ctx.globalAlpha = 1;
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = TEXT_COLOR;
     ctx.fillText(String(val), x + w - 12, rowCenterY);
   });
   ctx.textAlign = 'left';
@@ -526,7 +527,7 @@ export function drawMenu(
 
     if (i === glowIndex) {
       const pulse = 0.5 + Math.sin(t / 200) * 0.5;
-      ctx.shadowColor = `rgba(255,209,102,${0.6 + pulse * 0.4})`;
+      ctx.shadowColor = SELECT_GOLD;
       ctx.shadowBlur = 12 + pulse * 10;
     }
     ctx.fillText(text, textX, textY);
