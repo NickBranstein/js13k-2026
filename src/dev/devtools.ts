@@ -42,7 +42,7 @@ export interface DevToolsHost {
 // just from being imported, regardless of whether its exports are read.
 let debugLabelsCache: string[] | null = null;
 function debugLabels(): string[] {
-  if (!debugLabelsCache) debugLabelsCache = [...MUTATION_ITEMS.map((m) => m.name), 'Rainbow Potion +1'];
+  if (!debugLabelsCache) debugLabelsCache = [...MUTATION_ITEMS.map((m) => m[0]), 'Rainbow Potion +1'];
   return debugLabelsCache;
 }
 let debugOpen = false;
@@ -52,8 +52,9 @@ function applyDebugMutation(index: number, host: DevToolsHost): void {
   if (!host.player) return;
   if (index < MUTATION_ITEMS.length) {
     const item = MUTATION_ITEMS[index];
-    const detail = item.apply(host.player, host.traits, Math.random);
-    console.log(`[debug] ${item.name}: ${detail}`);
+    // MutationItem is the documented [name, apply] production tuple.
+    const detail = item[1](host.player, host.traits, Math.random);
+    console.log(`[debug] ${item[0]}: ${detail}`);
   } else {
     host.grantPotion();
     console.log('[debug] +1 Rainbow Potion');

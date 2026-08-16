@@ -3,13 +3,13 @@
 
 import { INK_OUTLINE as OUTLINE, drawGroundShadow } from './shared';
 
-export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
+// main.ts positions both event sprites at the canvas origin and brackets each
+// call with save/restore, so these terminal renderers can draw in caller space.
+export function drawTreasureChest(ctx: CanvasRenderingContext2D, t: number): void {
   const r = 44;
   const lidOpen = 0.35 + Math.sin(t / 600) * 0.05;
 
-  ctx.save();
-  ctx.translate(x, y);
-  drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
+  drawGroundShadow(ctx, r, r * 0.85);
 
   // chest base
   ctx.fillStyle = '#8a5537';
@@ -59,17 +59,13 @@ export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: n
   ctx.roundRect(-r * 0.14, r * 0.18, r * 0.28, r * 0.24, 4);
   ctx.fill();
   ctx.stroke();
-
-  ctx.restore();
 }
 
-export function drawTrapFloor(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
+export function drawTrapFloor(ctx: CanvasRenderingContext2D, t: number): void {
   const r = 48;
   const pulse = 0.5 + Math.sin(t / 260) * 0.5;
 
-  ctx.save();
-  ctx.translate(x, y);
-  drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
+  drawGroundShadow(ctx, r, r * 0.85);
 
   // stone floor plate
   ctx.fillStyle = '#5c5560';
@@ -112,6 +108,4 @@ export function drawTrapFloor(ctx: CanvasRenderingContext2D, x: number, y: numbe
     ctx.arc(sx, baseY - h, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  ctx.restore();
 }

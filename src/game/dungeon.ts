@@ -9,10 +9,12 @@ const ROOM_TRAP = 2;
 
 export type RoomType = typeof ROOM_MONSTER | typeof ROOM_TREASURE | typeof ROOM_TRAP;
 
-export interface FloorEncounter {
-  type: RoomType;
-  boss: boolean;
-}
+/**
+ * Compact encounter code: -1 is a boss monster; 0/1/2 are the normal room
+ * constants above. The negative sentinel is safe because normal room IDs are
+ * non-negative, and it avoids a separate object and boolean.
+ */
+export type FloorEncounter = RoomType | -1;
 
 const TREASURE_CHANCE = 0.25;
 const TRAP_CHANCE = 0.1;
@@ -20,7 +22,7 @@ const BOSS_INTERVAL = 10;
 
 export function generateFloorEncounter(runSeed: number, floor: number): FloorEncounter {
   if (floor % BOSS_INTERVAL === 0) {
-    return { type: ROOM_MONSTER, boss: true };
+    return -1;
   }
 
   // deterministic per (run, floor) — same run seed always produces the same sequence
@@ -31,31 +33,26 @@ export function generateFloorEncounter(runSeed: number, floor: number): FloorEnc
   else if (roll < TRAP_CHANCE + TREASURE_CHANCE) type = ROOM_TREASURE;
   else type = ROOM_MONSTER;
 
-  return { type, boss: false };
-}
-
-export interface TrapResult {
-  damage: number;
-  message: string;
+  return type;
 }
 
 // Traps can hurt, but never end a run outright — damage is capped so the player
-// always survives with at least 1 HP.
-export function resolveTrap(runSeed: number, floor: number, floorDepth: number, currentHp: number): TrapResult {
+// always survives with at least 1 HP. The caller formats the message from this
+// value, avoiding a one-use result object.
+export function resolveTrap(runSeed: number, floor: number, floorDepth: number, currentHp: number): number {
   const rng = mulberry32((runSeed ^ (floor * 0x85ebca6b)) >>> 0);
   const rolled = Math.round(4 + floorDepth * 1.5 + rng() * 6);
-  const damage = Math.max(0, Math.min(rolled, currentHp - 1));
-  return { damage, message: `A hidden trap triggers! You take ${damage} damage.` };
+  return Math.max(0, Math.min(rolled, currentHp - 1));
 }
 
-export interface TreasureResult {
-  heal: number;
-  foundMutationItem: boolean;
-}
-
-export function resolveTreasure(runSeed: number, floor: number, mutationChance: number): TreasureResult {
+/**
+ * Returns a signed heal amount: abs(result) is always the 8..20 HP reward,
+ * while a negative result also signals a mutation item. Healing can never be
+ * zero, so the sign carries the flag without an ambiguous edge case.
+ */
+export function resolveTreasure(runSeed: number, floor: number, mutationChance: number): number {
   const rng = mulberry32((runSeed ^ (floor * 0xc2b2ae35)) >>> 0);
   const heal = Math.round(8 + rng() * 12);
   const foundMutationItem = chance(rng, mutationChance);
-  return { heal, foundMutationItem };
+  return foundMutationItem ? -heal : heal;
 }

@@ -307,7 +307,7 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
       ctx.stroke();
     }
   }
-  ctx.lineCap = 'butt';
+  // The following fillStroke sets lineCap before the next stroke.
 
   // abdomen (rear) + cephalothorax (front)
   ctx.beginPath();
@@ -598,7 +598,8 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
       ctx.stroke();
     });
 
-    ctx.save();
+    // This is the terminal Sentrybot branch; main.ts restores the state that
+    // brackets drawMonster, so its turret transform needs no nested snapshot.
     ctx.translate(0, r * 0.1);
     ctx.rotate(Math.sin(rot) * 0.5);
     ctx.beginPath();
@@ -612,7 +613,6 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.beginPath();
     ctx.arc(0, -r * 0.15, r * 0.12, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   } else {
     // Automaton: boxy biped
     const stride = Math.sin(t / 260) * 4 * s;
@@ -671,6 +671,8 @@ function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   const alpha = variant === 1 ? 0.75 : 1;
 
   drawGroundShadow(ctx, spread * 0.8);
+  // Alpha is constant across the swarm; main.ts restores it after drawMonster.
+  ctx.globalAlpha = alpha;
 
   for (let i = 0; i < count; i++) {
     const phase = (i / count) * Math.PI * 2 + traits.seed;
@@ -679,7 +681,6 @@ function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     const py = Math.sin(t / (speed * 0.8) + phase * 1.3) * orbit * 0.6 - spread * 0.2;
     const r = (5 + 2 * Math.sin(phase * 3)) * s;
 
-    ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.fillStyle = i % 2 === 0 ? traits.palette[1] : traits.palette[2];
@@ -687,7 +688,6 @@ function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.lineWidth = 1.5;
     ctx.fill();
     ctx.stroke();
-    ctx.globalAlpha = 1;
   }
 }
 

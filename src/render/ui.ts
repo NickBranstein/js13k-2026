@@ -14,24 +14,17 @@ function panelPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, r);
 }
 
-// rightX is the panel's right edge, so it stays flush against that edge
-// regardless of the text width (which changes slightly with muted state).
-// Exported so main.ts's click handler can hit-test the exact same rect
-// drawMuteToggle draws, instead of duplicating the width math.
-export function muteToggleBounds(
-  ctx: CanvasRenderingContext2D,
-  rightX: number,
-  y: number,
-  muted: boolean
-): { x: number; y: number; w: number; h: number } {
+// The toggle and help button live at fixed canvas-space coordinates in the
+// 1280x720 layout. Only the mute label's measured width varies, so sharing that
+// one scalar keeps drawing and hit-testing identical without a bounds object.
+export function muteToggleWidth(ctx: CanvasRenderingContext2D, muted: boolean): number {
   ctx.font = '600 16px sans-serif';
-  const textW = ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width;
-  const w = textW + 28;
-  return { x: rightX - w, y, w, h: 34 };
+  return ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width + 28;
 }
 
-export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y: number, muted: boolean): void {
-  const { x, w, h } = muteToggleBounds(ctx, rightX, y, muted);
+export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): void {
+  const w = muteToggleWidth(ctx, muted);
+  const x = 1264 - w, y = 16, h = 34;
   const text = `[M]ute [${muted ? 'X' : ' '}]`;
 
   panelPath(ctx, x, y, w, h, h / 2);
@@ -53,8 +46,8 @@ export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y:
 // Small round "?" button, same visual family as the mute toggle — gives
 // mouse/touch users a way to open the how-to-play panel (Escape-only
 // otherwise, which touch devices can't send).
-export function drawHelpButton(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-  const r = size / 2;
+export function drawHelpButton(ctx: CanvasRenderingContext2D, x: number): void {
+  const y = 16, r = 17, size = 34;
   ctx.beginPath();
   ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(53,32,84,0.85)';
@@ -352,7 +345,8 @@ function drawGoldPanel(
   const y = centerY - h / 2;
   const pulse = 0.5 + Math.sin(t / 500) * 0.5;
 
-  ctx.save();
+  // The glow changes only fillStyle, which the panel body overwrites below;
+  // there is no transform or alpha state here that needs a save/restore pair.
   const glow = ctx.createRadialGradient(centerX, centerY, glowR0, centerX, centerY, w * glowScale);
   glow.addColorStop(0, `rgba(255,214,102,${glowA0 + pulse * glowA1})`);
   glow.addColorStop(1, 'rgba(255,214,102,0)');
@@ -360,7 +354,6 @@ function drawGoldPanel(
   ctx.beginPath();
   ctx.arc(centerX, centerY, w * glowScale, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 
   panelPath(ctx, x, y, w, h, radius);
   const grad = ctx.createLinearGradient(x, y, x + w, y + h);

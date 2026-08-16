@@ -138,6 +138,7 @@ function horseLeg(
   front: boolean,
   phase = 0
 ) {
+  const legColor = front ? coat[COAT_BASE] : coat[COAT_DARK];
   const kneeX = x + Math.sin(angle) * upperLen;
   const kneeY = y + Math.cos(angle) * upperLen;
   const fetlockAngle = angle * 0.45 + phase;
@@ -151,7 +152,7 @@ function horseLeg(
   ctx.lineTo(kneeX + width * 0.42, kneeY + 3);
   ctx.quadraticCurveTo(x + width * 0.8, y + upperLen * 0.42, x + width * 0.48, y);
   ctx.closePath();
-  fillStroke(ctx, front ? coat[COAT_BASE] : coat[COAT_DARK], coat[COAT_OUTLINE], 4);
+  fillStroke(ctx, legColor, coat[COAT_OUTLINE], 4);
 
   // Narrow cannon bone.
   ctx.beginPath();
@@ -160,7 +161,7 @@ function horseLeg(
   ctx.lineTo(fetlockX + width * 0.24, fetlockY + 2);
   ctx.lineTo(kneeX + width * 0.38, kneeY + 5);
   ctx.closePath();
-  fillStroke(ctx, front ? coat[COAT_BASE] : coat[COAT_DARK], coat[COAT_OUTLINE], 3.5);
+  fillStroke(ctx, legColor, coat[COAT_OUTLINE], 3.5);
 
   // Fetlock + hoof.
   const hoofW = width * 0.9;
@@ -217,7 +218,8 @@ function drawMane(
   const curl = traits.style === 1 ? 2.4 : traits.style === 2 ? 1 : traits.style === 3 ? 0.3 : 0;
 
   for (let i = 0; i < n; i++) {
-    const f = i / Math.max(1, n - 1);
+    // Generated and dev-tool styles keep strandCount at 4, 5, or 7.
+    const f = i / (n - 1);
     const phase = traits.maneSeed + i * 1.9;
     const sway = Math.sin(t * 0.0015 + phase) * (6 + curl * 16) + Math.sin(t * 0.004 + phase * 2) * curl * 7;
     const x0 = neckX + 8 + f * 7;
@@ -236,7 +238,8 @@ function drawTail(ctx: CanvasRenderingContext2D, x: number, y: number, traits: U
   const curl = traits.style === 1 ? 2.4 : traits.style === 2 ? 1 : traits.style === 3 ? 0.3 : 0;
 
   for (let i = 0; i < n; i++) {
-    const f = i / Math.max(1, n - 1);
+    // n is clamped to at least five above.
+    const f = i / (n - 1);
     const phase = traits.maneSeed + 30 + i * 2.3;
     const sway = Math.sin(t * 0.0014 + phase) * (9 + curl * 16) + Math.sin(t * 0.0038 + phase * 2) * curl * 7;
     strokeCurve(
@@ -285,7 +288,7 @@ function drawEar(
   ctx.fillStyle = inner;
   ctx.globalAlpha = 0.75;
   ctx.fill();
-  ctx.globalAlpha = 1;
+  // restore resets the ear's temporary alpha.
   ctx.restore();
 }
 
@@ -527,7 +530,7 @@ function drawBody(
       }
     }
 
-    ctx.globalAlpha = 1;
+    // restore resets both the clip and the inherited drawing alpha.
     ctx.restore();
   }
 }
@@ -558,14 +561,14 @@ export function drawUnicorn(
 
   const shades = traits.coat;
 
-  drawGroundShadow(ctx, 110 * s, bodyX + 8 * s, groundY + 5, 110 * s, 110 * s * 0.25, 'rgba(20,10,30,0.24)');
+  drawGroundShadow(ctx, 110 * s, 110 * s, bodyX + 8 * s, groundY + 5, 110 * s * 0.25, 'rgba(20,10,30,0.24)');
 
   // Tail behind the body.
   drawTail(ctx, bodyX - bodyRx * 0.82, bodyY - bodyRy * 0.25, traits, t);
 
   // Rear legs first so the near legs can overlap them.
-  horseLeg(ctx, bodyX - 48 * s, bodyY + bodyRy * 0.34, 43 * s, 43 * s, 18 * s, -0.10, traits.coat, false, 0.02);
-  horseLeg(ctx, bodyX - 18 * s, bodyY + bodyRy * 0.40, 45 * s, 42 * s, 17 * s, 0.08, traits.coat, false, -0.03);
+  horseLeg(ctx, bodyX - 48 * s, bodyY + bodyRy * 0.34, 43 * s, 43 * s, 18 * s, -0.10, shades, false, 0.02);
+  horseLeg(ctx, bodyX - 18 * s, bodyY + bodyRy * 0.40, 45 * s, 42 * s, 17 * s, 0.08, shades, false, -0.03);
 
   // Body barrel.
   drawBody(ctx, bodyX, bodyY, bodyRx, bodyRy, shades, traits);
@@ -596,8 +599,8 @@ export function drawUnicorn(
   drawMane(ctx, neckTopX - 12 * s, neckTopY + 4 * s, neckBaseY + 15 * s, neckLen, traits, t);
 
   // Front legs, set beneath the shoulder/chest.
-  horseLeg(ctx, bodyX + 35 * s, bodyY + bodyRy * 0.42, 48 * s, 43 * s, 18 * s, -0.10, traits.coat, true, 0.03);
-  horseLeg(ctx, bodyX + 62 * s, bodyY + bodyRy * 0.34, 45 * s, 45 * s, 17 * s, 0.12, traits.coat, true, -0.02);
+  horseLeg(ctx, bodyX + 35 * s, bodyY + bodyRy * 0.42, 48 * s, 43 * s, 18 * s, -0.10, shades, true, 0.03);
+  horseLeg(ctx, bodyX + 62 * s, bodyY + bodyRy * 0.34, 45 * s, 45 * s, 17 * s, 0.12, shades, true, -0.02);
 
   // Head is deliberately separated from the barrel by the long neck.
   const headX = neckTopX + 8 * s;
@@ -648,7 +651,8 @@ export function drawUnicorn(
         ctx.moveTo(orbitCX + Math.cos(aPrev) * orbitRx, orbitCY + Math.sin(aPrev) * orbitRy);
         ctx.lineTo(px, py);
         ctx.stroke();
-        ctx.lineCap = 'butt';
+        // glowShape is fixed for this loop, so each next streak reapplies
+        // round; main.ts restores the caller-owned state after drawUnicorn.
       } else {
         ctx.fillStyle = traits.glowColor;
         ctx.strokeStyle = INK_OUTLINE;

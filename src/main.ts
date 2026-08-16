@@ -16,7 +16,7 @@ import {
   drawStatsPanel,
   drawLevelBadge,
   drawMuteToggle,
-  muteToggleBounds,
+  muteToggleWidth,
   drawHelpButton,
   maxLogScroll,
 } from './render/ui';
@@ -30,7 +30,12 @@ import {
   type FloorEncounter,
 } from './game/dungeon';
 import { createProgression, grantXp, xpForMonster, type Progression } from './game/progression';
-import { rollMutationItem, CONSUMABLE_DROP_CHANCE, TREASURE_MUTATION_CHANCE } from './game/item';
+import {
+  rollMutationItem,
+  CONSUMABLE_DROP_CHANCE,
+  TREASURE_MUTATION_CHANCE,
+  type MutationResult,
+} from './game/item';
 import { handleDevKeydown, drawDevTools } from './dev/devtools';
 import { mulberry32, chance } from './game/rng';
 import { animOffset, animProgress } from './render/fx';
@@ -102,7 +107,8 @@ let howToOpen = false;
 // otherwise advance a floor, showing the reveal screen (then the transform
 // animation) first. pendingMutationBefore snapshots the unicorn's look
 // before the mutation was applied, for the transform crossfade.
-let pendingMutationReveal: { name: string; detail: string } | null = null;
+// Compact reveal payload from item.ts: [display name, detail text].
+let pendingMutationReveal: MutationResult | null = null;
 let pendingMutationBefore: UnicornTraits | null = null;
 let transformStart: number | null = null;
 const TRANSFORM_DURATION = 1600;
@@ -188,43 +194,36 @@ function currentMenuOptions(): string[] {
     return options;
   }
   // state === STATE_EVENT
-  if (encounter.type === ROOM_TREASURE && !eventChoiceMade) return ['Collect', 'Leave'];
+  if (encounter === ROOM_TREASURE && !eventChoiceMade) return ['Collect', 'Leave'];
   return ['Proceed'];
 }
 
 // Geometry for the currently active command-bar menu — shared by rendering
 // (so drawMenu is called with these exact numbers) and click/tap
 // hit-testing, so taps land exactly where the drawn rows are.
-interface MenuRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  centered: boolean;
-}
+type MenuRect = [x: number, y: number, width: number, height: number, centered: boolean];
 
 function menuBounds(): MenuRect | null {
   const modalCenterY = 720 / 2;
   if (state === STATE_TITLE) {
-    return { x: 1280 / 2 - 68, y: 720 - 140, w: 136, h: 48, centered: true };
+    return [1280 / 2 - 68, 720 - 140, 136, 48, true];
   }
   if (state === STATE_REVEAL) {
-    return { x: 1280 / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
+    return [1280 / 2 - 90, modalCenterY + 380 / 2 - 66, 180, 48, true];
   }
   if (state === STATE_TRANSFORM) {
     if (currentMenuOptions().length === 0) return null;
-    return { x: 1280 / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
+    return [1280 / 2 - 90, modalCenterY + 520 / 2 - 66, 180, 48, true];
   }
-  return { x: 1280 - 340, y: 720 - 200, w: 284, h: 150, centered: false };
+  return [1280 - 340, 720 - 200, 284, 150, false];
 }
-
-const HELP_BTN_SIZE = 34;
 
 // Shared by drawing and click hit-testing, same as menuBounds — sits just
 // left of the mute toggle, whose width shifts slightly with muted state.
-function helpButtonBounds(): { x: number; y: number; size: number } {
-  const mtb = muteToggleBounds(context, 1280 - 16, 16, isMuted());
-  return { x: mtb.x - 10 - HELP_BTN_SIZE, y: mtb.y, size: HELP_BTN_SIZE };
+// With the mute control ending at x=1264, 1220 = 1264 - 10px gap - 34px
+// help button. Keeping that invariant here makes the compact formula legible.
+function helpButtonX(): number {
+  return 1220 - muteToggleWidth(context, isMuted());
 }
 
 // stats panel sits to the left of the combat log, both aligned to the same
@@ -285,9 +284,10 @@ function enterFloor(): void {
   resetLogScroll();
   resetCombatAnims();
 
-  if (encounter.type === ROOM_MONSTER) {
+  // Boss is -1 and a normal monster is 0, so both sort before Treasure (1).
+  if (encounter < ROOM_TREASURE) {
     const monsterSeed = monsterSeedFor(runSeed, floor);
-    monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter.boss);
+    monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter < ROOM_MONSTER);
     battle = createBattle(player, monsterToCombatant(monsterTraits), monsterSeed);
     displayedEnemyHp = battle.enemy.hp;
     state = STATE_BATTLE;
@@ -297,15 +297,15 @@ function enterFloor(): void {
   monsterTraits = undefined;
   battle = undefined;
 
-  if (encounter.type === ROOM_TREASURE) {
+  if (encounter === ROOM_TREASURE) {
     treasuresFound += 1;
     eventLines = [`Floor ${floor}: Treasure Room`, 'You find a treasure chest. Collect it or leave it behind?'];
     state = STATE_EVENT;
   } else {
     trapsFound += 1;
-    const result = resolveTrap(runSeed, floor, floor, player.hp);
-    player.hp = Math.max(1, player.hp - result.damage);
-    eventLines = [`Floor ${floor}: Trap Room`, result.message];
+    const damage = resolveTrap(runSeed, floor, floor, player.hp);
+    player.hp = Math.max(1, player.hp - damage);
+    eventLines = [`Floor ${floor}: Trap Room`, `A hidden trap triggers! You take ${damage} damage.`];
     eventChoiceMade = true;
     state = STATE_EVENT;
   }
@@ -355,9 +355,10 @@ function maybeGrantBattleRewards(): void {
   }
 
   const xpGain = xpForMonster(monsterTraits);
-  const levelResult = grantXp(progression, player, xpGain);
-  levelResult.messages.forEach((m) => battle!.log.push(m));
-  if (levelResult.levelsGained > 0) playLevelUp(0.4);
+  const levelMessages = grantXp(progression, player, xpGain);
+  levelMessages.forEach((m) => battle!.log.push(m));
+  // grantXp always returns one XP line, then one line per gained level.
+  if (levelMessages.length > 1) playLevelUp(0.4);
 
   if (chance(rewardRngFor(0x1), CONSUMABLE_DROP_CHANCE)) {
     inventory += 1;
@@ -479,12 +480,14 @@ function confirmSelection(): void {
   }
 
   // state === STATE_EVENT
-  if (encounter.type === ROOM_TREASURE && !eventChoiceMade) {
+  if (encounter === ROOM_TREASURE && !eventChoiceMade) {
     if (choice === 'Collect') {
       const result = resolveTreasure(runSeed, floor, TREASURE_MUTATION_CHANCE);
-      player.hp = Math.min(player.maxHp, player.hp + result.heal);
-      eventLines.push(`You find a treasure chest. Healed ${result.heal} HP.`);
-      if (result.foundMutationItem) {
+      // abs(result) is healing; a negative sign also carries the mutation flag.
+      const heal = Math.abs(result);
+      player.hp = Math.min(player.maxHp, player.hp + heal);
+      eventLines.push(`You find a treasure chest. Healed ${heal} HP.`);
+      if (result < 0) {
         pendingMutationBefore = { ...traits };
         pendingMutationReveal = rollMutationItem(rewardRngFor(0x3), player, traits);
         rainbowFruitsFound += 1;
@@ -533,19 +536,21 @@ window.addEventListener('keydown', (e) => {
 // Maps a mouse/touch event's client coordinates onto canvas-space pixels,
 // accounting for the CSS-scaled display size (1280x720 is the fixed internal
 // resolution, not the on-screen size).
-function canvasPoint(e: MouseEvent): { x: number; y: number } {
+type CanvasPoint = [x: number, y: number];
+
+function canvasPoint(e: MouseEvent): CanvasPoint {
   const rect = canvas.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) * (1280 / rect.width),
-    y: (e.clientY - rect.top) * (720 / rect.height),
-  };
+  return [
+    (e.clientX - rect.left) * (1280 / rect.width),
+    (e.clientY - rect.top) * (720 / rect.height),
+  ];
 }
 
 canvas.addEventListener(
   'wheel',
   (e) => {
     if (state === STATE_TITLE) return;
-    const { x: mx, y: my } = canvasPoint(e);
+    const [mx, my] = canvasPoint(e);
     if (mx < LOG_X || mx > LOG_X + LOG_W || my < LOG_Y || my > LOG_Y + LOG_H) return;
 
     e.preventDefault();
@@ -568,16 +573,17 @@ canvas.addEventListener('click', (e) => {
     return;
   }
   if (fadePhase !== FADE_NONE) return;
-  const { x: mx, y: my } = canvasPoint(e);
+  const [mx, my] = canvasPoint(e);
 
   if (state !== STATE_TITLE) {
-    const mtb = muteToggleBounds(context, 1280 - 16, 16, isMuted());
-    if (mx >= mtb.x && mx <= mtb.x + mtb.w && my >= mtb.y && my <= mtb.y + mtb.h) {
+    const mtw = muteToggleWidth(context, isMuted());
+    // Fixed toggle bounds: right=1264, top=16, height=34.
+    if (mx >= 1264 - mtw && mx <= 1264 && my >= 16 && my <= 50) {
       toggleMute();
       return;
     }
-    const hb = helpButtonBounds();
-    if (mx >= hb.x && mx <= hb.x + hb.size && my >= hb.y && my <= hb.y + hb.size) {
+    const hbx = helpButtonX();
+    if (mx >= hbx && mx <= hbx + 34 && my >= 16 && my <= 50) {
       howToOpen = true;
       return;
     }
@@ -587,10 +593,10 @@ canvas.addEventListener('click', (e) => {
   if (!mb) return;
   const options = currentMenuOptions();
   if (options.length === 0) return;
-  if (mx < mb.x || mx > mb.x + mb.w || my < mb.y || my > mb.y + mb.h) return;
+  if (mx < mb[0] || mx > mb[0] + mb[2] || my < mb[1] || my > mb[1] + mb[3]) return;
 
-  const rowH = mb.h / options.length;
-  const row = Math.min(options.length - 1, Math.floor((my - mb.y) / rowH));
+  const rowH = mb[3] / options.length;
+  const row = Math.min(options.length - 1, Math.floor((my - mb[1]) / rowH));
   selected = row;
   playConfirm();
   confirmSelection();
@@ -686,16 +692,15 @@ function render(): void {
         context.textAlign = 'left';
       }
       const titleMenu = menuBounds()!;
-      drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
+      drawMenu(context, titleMenu[0], titleMenu[1], titleMenu[2], titleMenu[3], currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
       drawHowTo();
       if (__DEV__) drawDevTools(context, 1280);
       return;
     }
 
-    drawMuteToggle(context, 1280 - 16, 16, isMuted());
-    const helpBtn = helpButtonBounds();
-    drawHelpButton(context, helpBtn.x, helpBtn.y, helpBtn.size);
+    drawMuteToggle(context, isMuted());
+    drawHelpButton(context, helpButtonX());
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
@@ -725,8 +730,8 @@ function render(): void {
       context.save();
       context.translate(ENEMY_SPRITE_X, 720 * 0.5);
       context.scale(uiScale, uiScale);
-      if (encounter.type === ROOM_TREASURE) drawTreasureChest(context, 0, 0, t);
-      else drawTrapFloor(context, 0, 0, t);
+      if (encounter === ROOM_TREASURE) drawTreasureChest(context, t);
+      else drawTrapFloor(context, t);
       context.restore();
     } else if (state === STATE_GAME_OVER) {
       drawRunSummary(
@@ -750,7 +755,7 @@ function render(): void {
     }
 
     if (state !== STATE_GAME_OVER) {
-      drawFloorBadge(context, 1280 / 2, 16, floor, encounter.boss);
+      drawFloorBadge(context, 1280 / 2, 16, floor, encounter < ROOM_MONSTER);
     }
 
     displayedPlayerHp += (player.hp - displayedPlayerHp) * HP_TWEEN_RATE;
@@ -792,7 +797,7 @@ function render(): void {
     if (state === STATE_REVEAL && pendingMutationReveal) {
       context.fillStyle = 'rgba(10,6,18,0.45)';
       context.fillRect(0, 0, 1280, 720);
-      drawMutationReveal(context, 1280 / 2, modalCenterY, 680, 380, pendingMutationReveal.name, pendingMutationReveal.detail, t);
+      drawMutationReveal(context, 1280 / 2, modalCenterY, 680, 380, pendingMutationReveal[0], pendingMutationReveal[1], t);
     } else if (state === STATE_TRANSFORM && pendingMutationBefore && pendingMutationReveal) {
       const progress = transformStart === null ? 1 : Math.min(1, (t - transformStart) / TRANSFORM_DURATION);
       const tcx = 1280 / 2;
@@ -823,7 +828,7 @@ function render(): void {
       context.scale(spriteScale, spriteScale);
       context.globalAlpha = progress;
       drawUnicorn(context, traits, t);
-      context.globalAlpha = 1;
+      // The enclosing restore returns alpha to its caller-owned value.
       context.restore();
 
       context.textAlign = 'center';
@@ -834,10 +839,10 @@ function render(): void {
 
       context.textBaseline = 'top';
       context.font = '700 20px sans-serif';
-      context.fillText(`✨ ${pendingMutationReveal.name} ✨`, tcx, tcy - th / 2 + 20);
+      context.fillText(`✨ ${pendingMutationReveal[0]} ✨`, tcx, tcy - th / 2 + 20);
 
       context.font = '600 15px sans-serif';
-      const transformLines = wrapText(context, pendingMutationReveal.detail, tw - 100);
+      const transformLines = wrapText(context, pendingMutationReveal[1], tw - 100);
       transformLines.forEach((line, i) => context.fillText(line, tcx, tcy - th / 2 + 52 + i * 22));
       context.textAlign = 'left';
       context.textBaseline = 'alphabetic';
@@ -850,7 +855,7 @@ function render(): void {
         state === STATE_BATTLE && battle && !isBattleOver(battle) && isVulnerable(battle.enemy)
           ? menuOptions.indexOf('Charm')
           : -1;
-      drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);
+      drawMenu(context, mb[0], mb[1], mb[2], mb[3], menuOptions, selected, mb[4], charmGlow, t);
     }
     drawFadeOverlay(t);
     drawHowTo();

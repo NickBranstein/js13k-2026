@@ -22,14 +22,15 @@ export function fillStroke(ctx: CanvasRenderingContext2D, fill: string, outline:
   ctx.stroke();
 }
 
-// Defaults match monster.ts's 9 call sites exactly (all just pass r), so
-// only unicorn.ts's one differently-shaped call needs to override anything.
+// Defaults match monster.ts's 9 call sites exactly (all just pass r). rx is
+// the first override because event.ts is the only other caller that changes
+// one shadow dimension; unicorn.ts supplies the remaining geometry explicitly.
 export function drawGroundShadow(
   ctx: CanvasRenderingContext2D,
   r: number,
+  rx = r * 0.8,
   cx = 0,
   cy = r * 0.95,
-  rx = r * 0.8,
   ry = r * 0.22,
   color = 'rgba(20,10,10,0.18)'
 ): void {

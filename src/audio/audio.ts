@@ -40,7 +40,8 @@ export function toggleMute(): void {
 
 function tone(freq: number, delay: number, duration: number, type: OscillatorType, volume: number): void {
   const c = getCtx();
-  const start = c.currentTime + Math.max(0, delay);
+  // Every internal caller supplies zero or a nonnegative delay.
+  const start = c.currentTime + delay;
   const osc = c.createOscillator();
   const gain = c.createGain();
   osc.type = type;
@@ -90,7 +91,7 @@ let ambientOn = false;
 
 const MELODY_SCALE = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25];
 let melodyIndex = 3;
-let melodyTimer: number | null = null;
+let melodyTimer: ReturnType<typeof setTimeout> | null = null;
 
 function scheduleMelodyNote(): void {
   if (!ambientOn) return;
@@ -99,7 +100,7 @@ function scheduleMelodyNote(): void {
     melodyIndex = Math.max(0, Math.min(MELODY_SCALE.length - 1, melodyIndex + step));
     tone(MELODY_SCALE[melodyIndex], 0, 1.1, 'triangle', 0.06);
   }
-  melodyTimer = window.setTimeout(scheduleMelodyNote, 550 + Math.random() * 450);
+  melodyTimer = setTimeout(scheduleMelodyNote, 550 + Math.random() * 450);
 }
 
 export function startAmbient(): void {

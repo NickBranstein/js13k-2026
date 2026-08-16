@@ -23,22 +23,15 @@ export function xpForMonster(m: MonsterTraits): number {
   return m.isBoss ? base * 2 : base;
 }
 
-export interface LevelUpResult {
-  levelsGained: number;
-  messages: string[];
-}
-
-// Mutates progression and player in place; returns log lines to surface to the player.
-export function grantXp(progression: Progression, player: Combatant, xpGain: number): LevelUpResult {
+// Mutates progression and player in place. The first returned line is always
+// the XP message; each additional line represents one level gained. Therefore
+// messages.length > 1 is also the compact, unambiguous "leveled up" signal.
+export function grantXp(progression: Progression, player: Combatant, xpGain: number): string[] {
   progression.xp += xpGain;
   const messages: string[] = [`Gained ${xpGain} XP.`];
-  let levelsGained = 0;
-
   while (progression.xp >= xpToNext(progression.level)) {
     progression.xp -= xpToNext(progression.level);
     progression.level += 1;
-    levelsGained += 1;
-
     player.maxHp += 8;
     player.atk += 2;
     player.def += 1;
@@ -46,5 +39,5 @@ export function grantXp(progression: Progression, player: Combatant, xpGain: num
     messages.push(`${player.name} reached level ${progression.level}! Stats increased.`);
   }
 
-  return { levelsGained, messages };
+  return messages;
 }
