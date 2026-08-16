@@ -6,7 +6,18 @@
 // accessory and the name prefix drives the palette (see game/monster.ts), so a
 // monster's look follows its rolled name instead of being randomized separately.
 
-import type { MonsterTraits } from '../game/monster';
+import {
+  type MonsterTraits,
+  BlobVariant,
+  QuadrupedVariant,
+  AvianVariant,
+  ArachnidVariant,
+  CrystalVariant,
+  SeaCreatureVariant,
+  FloraVariant,
+  RobotVariant,
+  SwarmVariant,
+} from '../game/monster';
 import { INK_OUTLINE as OUTLINE, fillStroke, drawGroundShadow } from './shared';
 
 function drawEyes(ctx: CanvasRenderingContext2D, cx: number, cy: number, spread: number, r: number): void {
@@ -27,7 +38,7 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
   ctx.save();
   ctx.translate(0, bob);
 
-  if (variant === 1) {
+  if (variant === BlobVariant.Ooze) {
     // drippy protrusions hanging from the underside
     ctx.fillStyle = traits.palette.base;
     ctx.strokeStyle = OUTLINE;
@@ -41,7 +52,7 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
   }
 
   ctx.beginPath();
-  if (variant === 2) {
+  if (variant === BlobVariant.Glob) {
     // lumpy outline instead of a smooth ellipse
     const bumps = 8;
     for (let i = 0; i <= bumps; i++) {
@@ -75,7 +86,7 @@ function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant
   ctx.strokeStyle = OUTLINE;
   ctx.fillStyle = palette.dark;
 
-  if (variant === 0) {
+  if (variant === QuadrupedVariant.Lynx) {
     // slim whip tail
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -87,7 +98,7 @@ function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant
       baseY - bodyR * (0.05 + sway)
     );
     ctx.stroke();
-  } else if (variant === 1) {
+  } else if (variant === QuadrupedVariant.Boar) {
     // short curly tail
     ctx.lineWidth = 5;
     ctx.beginPath();
@@ -108,7 +119,7 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 3;
 
-  if (variant === 0) {
+  if (variant === QuadrupedVariant.Lynx) {
     // regular pointy ears, angled back from the top of the head
     [bodyR * 0.62, bodyR * 0.92].forEach((ex) => {
       ctx.beginPath();
@@ -119,7 +130,7 @@ function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number
       ctx.fill();
       ctx.stroke();
     });
-  } else if (variant === 1) {
+  } else if (variant === QuadrupedVariant.Boar) {
     // flat snout with two small nostrils, no ears
     ctx.beginPath();
     ctx.ellipse(bodyR * 1.15, -bodyR * 0.15, bodyR * 0.14, bodyR * 0.1, 0, 0, Math.PI * 2);
@@ -210,8 +221,8 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   const s = traits.scale;
   const bob = Math.sin(t / 380) * 4 * s;
   const bodyR = 32 * s;
-  const flap = Math.sin(t / 170) * (variant === 0 ? 0.7 : 0.5);
-  const wingSpan = variant === 0;
+  const flap = Math.sin(t / 170) * (variant === AvianVariant.Roc ? 0.7 : 0.5);
+  const wingSpan = variant === AvianVariant.Roc;
 
   drawGroundShadow(ctx, bodyR * 1.1);
 
@@ -221,7 +232,7 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   drawWing(ctx, bodyR, flap - 0.3, traits.palette.dark, wingSpan);
 
   // tail feathers
-  const tailFan = variant === 0 ? 3 : 2;
+  const tailFan = variant === AvianVariant.Roc ? 3 : 2;
   ctx.strokeStyle = OUTLINE;
   ctx.fillStyle = traits.palette.dark;
   ctx.lineWidth = 2;
@@ -260,7 +271,7 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   ctx.ellipse(bodyR * 0.85, -bodyR * 0.4, bodyR * 0.3, bodyR * 0.27, 0, 0, Math.PI * 2);
   fillStroke(ctx, traits.palette.light);
 
-  if (variant === 2) {
+  if (variant === AvianVariant.Jay) {
     // crest feather
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 3;
@@ -289,8 +300,8 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
 function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
   const s = traits.scale;
-  const bodyR = variant === 1 ? 26 * s : 20 * s;
-  const legLen = variant === 2 ? 1.3 : 1.0;
+  const bodyR = variant === ArachnidVariant.Crawler ? 26 * s : 20 * s;
+  const legLen = variant === ArachnidVariant.Weaver ? 1.3 : 1.0;
   const bob = Math.sin(t / 260) * 2 * s;
 
   drawGroundShadow(ctx, bodyR * 2.4 * legLen);
@@ -321,14 +332,14 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
 
   // abdomen (rear) + cephalothorax (front)
   ctx.beginPath();
-  ctx.ellipse(-bodyR * 0.5, 0, bodyR * (variant === 2 ? 0.9 : 0.7), bodyR * 0.6, 0, 0, Math.PI * 2);
+  ctx.ellipse(-bodyR * 0.5, 0, bodyR * (variant === ArachnidVariant.Weaver ? 0.9 : 0.7), bodyR * 0.6, 0, 0, Math.PI * 2);
   fillStroke(ctx, traits.palette.base);
 
   ctx.beginPath();
   ctx.ellipse(bodyR * 0.5, -bodyR * 0.1, bodyR * 0.45, bodyR * 0.4, 0, 0, Math.PI * 2);
   fillStroke(ctx, traits.palette.light);
 
-  if (variant === 0) {
+  if (variant === ArachnidVariant.Spinner) {
     // trailing web line
     ctx.strokeStyle = 'rgba(244,236,255,0.5)';
     ctx.lineWidth = 1.5;
@@ -355,7 +366,7 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
 
   // angular gem body — straight-line polygon, no curves
   const points: [number, number][] =
-    variant === 1
+    variant === CrystalVariant.Sentinel
       ? [
           [0, -r * 1.3],
           [r * 0.4, -r * 0.4],
@@ -385,7 +396,7 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
   ctx.lineTo(0, points[Math.floor(points.length / 2)][1]);
   ctx.stroke();
 
-  if (variant === 2) {
+  if (variant === CrystalVariant.Warden) {
     // jagged spike crown
     ctx.fillStyle = traits.palette.light;
     ctx.strokeStyle = OUTLINE;
@@ -421,7 +432,7 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
   ctx.translate(0, bob);
   ctx.rotate(swim * 0.15);
 
-  if (variant === 1) {
+  if (variant === SeaCreatureVariant.Crab) {
     // round shell body + pincers + short legs
     const scuttle = Math.sin(t / 200) * 3 * s;
     ctx.strokeStyle = traits.palette.dark;
@@ -443,7 +454,7 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
       fillStroke(ctx, traits.palette.light);
     });
     drawEyes(ctx, 0, -len * 0.35, len * 0.14, len * 0.05);
-  } else if (variant === 0) {
+  } else if (variant === SeaCreatureVariant.Ray) {
     // flat wide body with sweeping wing fins
     ctx.beginPath();
     ctx.moveTo(len * 0.7, 0);
@@ -514,7 +525,7 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   ctx.translate(0, -stemH);
 
-  if (variant === 1) {
+  if (variant === FloraVariant.Fungling) {
     // mushroom dome + gills
     ctx.beginPath();
     ctx.arc(0, 0, stemH * 0.45, Math.PI, 0);
@@ -527,7 +538,7 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
       ctx.lineTo(i * stemH * 0.05, stemH * 0.06);
       ctx.stroke();
     }
-  } else if (variant === 2) {
+  } else if (variant === FloraVariant.Bramblekin) {
     // jagged thorny crown
     const spikes = 7;
     ctx.beginPath();
@@ -571,7 +582,7 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   const r = 34 * s;
   const glow = 0.5 + Math.sin(t / 260) * 0.5;
 
-  if (variant === 1) {
+  if (variant === RobotVariant.Drone) {
     const hover = Math.sin(t / 300) * 6 * s;
     drawGroundShadow(ctx, r * 0.7);
     ctx.save();
@@ -603,7 +614,7 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   ctx.save();
 
-  if (variant === 2) {
+  if (variant === RobotVariant.Sentrybot) {
     // wheeled/treaded base + rotating turret top
     const rot = t / 900;
     ctx.fillStyle = traits.palette.dark;
@@ -688,10 +699,10 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
 function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
   const s = traits.scale;
-  const count = variant === 1 ? 8 : variant === 2 ? 5 : 6;
-  const spread = variant === 1 ? 46 * s : 30 * s;
-  const speed = variant === 2 ? 260 : 420;
-  const alpha = variant === 1 ? 0.75 : 1;
+  const count = variant === SwarmVariant.Cloud ? 8 : variant === SwarmVariant.Flurry ? 5 : 6;
+  const spread = variant === SwarmVariant.Cloud ? 46 * s : 30 * s;
+  const speed = variant === SwarmVariant.Flurry ? 260 : 420;
+  const alpha = variant === SwarmVariant.Cloud ? 0.75 : 1;
 
   drawGroundShadow(ctx, spread * 0.8);
 

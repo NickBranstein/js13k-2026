@@ -32,9 +32,25 @@ function derivePalette(p: PaletteSeed): MonsterPalette {
   };
 }
 
+// Archetype is the same numeric identity as MONSTER_DRAWERS' index in
+// render/monster.ts. variant's meaning depends on which archetype it belongs
+// to (e.g. 1 means Ooze for Blob but Boar for Quadruped) — see the per-
+// archetype *Variant enums below, used by render/monster.ts's draw functions
+// instead of bare numbers, matching NAME_SUFFIXES' order exactly.
+export const enum Archetype { Blob, Quadruped, Avian, Arachnid, Crystal, SeaCreature, Flora, Robot, Swarm }
+export const enum BlobVariant { Blob, Ooze, Glob }
+export const enum QuadrupedVariant { Lynx, Boar, Stag }
+export const enum AvianVariant { Roc, Harpy, Jay }
+export const enum ArachnidVariant { Spinner, Crawler, Weaver }
+export const enum CrystalVariant { Golem, Sentinel, Warden }
+export const enum SeaCreatureVariant { Ray, Crab, Pike }
+export const enum FloraVariant { Bloom, Fungling, Bramblekin }
+export const enum RobotVariant { Automaton, Drone, Sentrybot }
+export const enum SwarmVariant { Swarm, Cloud, Flurry }
+
 export interface MonsterTraits {
   seed: number;
-  archetypeIndex: number;
+  archetypeIndex: Archetype;
   variant: number;
   name: string;
   namePrefix: string;
@@ -139,7 +155,7 @@ const BASE_STATS: { hp: number; atk: number; def: number }[] = [
 
 export function generateMonsterTraits(seed: number, depth = 1, isBoss = false): MonsterTraits {
   const rng = mulberry32(seed >>> 0);
-  const archetypeIndex = Math.floor(rng() * 9);
+  const archetypeIndex = Math.floor(rng() * 9) as Archetype;
   const [namePrefix, paletteSeed] = pick(rng, NAME_PREFIXES[archetypeIndex]);
   const palette = derivePalette(paletteSeed);
   const variant = Math.floor(rng() * 3);
