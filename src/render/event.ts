@@ -3,11 +3,13 @@
 
 import { INK_OUTLINE as OUTLINE, drawGroundShadow } from './shared';
 
+// No outer save/restore here — main.ts's one call site already wraps this in
+// its own save/translate/restore, so this translate is always undone by the
+// caller before anything else draws.
 export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
   const r = 44;
   const lidOpen = 0.35 + Math.sin(t / 600) * 0.05;
 
-  ctx.save();
   ctx.translate(x, y);
   drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
 
@@ -59,15 +61,13 @@ export function drawTreasureChest(ctx: CanvasRenderingContext2D, x: number, y: n
   ctx.roundRect(-r * 0.14, r * 0.18, r * 0.28, r * 0.24, 4);
   ctx.fill();
   ctx.stroke();
-
-  ctx.restore();
 }
 
+// Same no-save/restore reasoning as drawTreasureChest above.
 export function drawTrapFloor(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
   const r = 48;
   const pulse = 0.5 + Math.sin(t / 260) * 0.5;
 
-  ctx.save();
   ctx.translate(x, y);
   drawGroundShadow(ctx, r, undefined, undefined, r * 0.85);
 
@@ -112,6 +112,4 @@ export function drawTrapFloor(ctx: CanvasRenderingContext2D, x: number, y: numbe
     ctx.arc(sx, baseY - h, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  ctx.restore();
 }

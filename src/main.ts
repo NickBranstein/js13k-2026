@@ -16,7 +16,7 @@ import {
   drawStatsPanel,
   drawLevelBadge,
   drawMuteToggle,
-  muteToggleBounds,
+  muteToggleWidth,
 } from './render/ui';
 import { GOLD_TEXT } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter, RoomType } from './game/dungeon';
@@ -162,34 +162,29 @@ function currentMenuOptions(): string[] {
     return options;
   }
   // state === GameState.Event
-  if (encounter.type === RoomType.Treasure && !eventChoiceMade) return ['Collect', 'Leave'];
+  if (encounter === RoomType.Treasure && !eventChoiceMade) return ['Collect', 'Leave'];
   return ['Proceed'];
 }
 
 // Geometry for the currently active command-bar menu — shared by rendering
 // (so drawMenu is called with these exact numbers) and click/tap
 // hit-testing, so taps land exactly where the drawn rows are.
-interface MenuRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  centered: boolean;
-}
+// Tuple layout: [x, y, width, height, centered].
+type MenuRect = [number, number, number, number, boolean];
 
 function menuBounds(): MenuRect | null {
   const modalCenterY = 720 / 2;
   if (state === GameState.Title) {
-    return { x: 1280 / 2 - 68, y: 720 - 140, w: 136, h: 48, centered: true };
+    return [1280 / 2 - 68, 720 - 140, 136, 48, true];
   }
   if (state === GameState.MutationReveal) {
-    return { x: 1280 / 2 - 90, y: modalCenterY + 380 / 2 - 66, w: 180, h: 48, centered: true };
+    return [1280 / 2 - 90, modalCenterY + 380 / 2 - 66, 180, 48, true];
   }
   if (state === GameState.MutationTransform) {
     if (currentMenuOptions().length === 0) return null;
-    return { x: 1280 / 2 - 90, y: modalCenterY + 520 / 2 - 66, w: 180, h: 48, centered: true };
+    return [1280 / 2 - 90, modalCenterY + 520 / 2 - 66, 180, 48, true];
   }
-  return { x: 1280 - 340, y: 720 - 200, w: 284, h: 150, centered: false };
+  return [1280 - 340, 720 - 200, 284, 150, false];
 }
 
 // stats panel sits to the left of the combat log, both aligned to the same
@@ -240,9 +235,13 @@ function enterFloor(): void {
   vulnerableMessageLogIndex = -1;
   resetCombatAnims();
 
-  if (encounter.type === RoomType.Monster) {
+  // encounter is -1 (boss) or RoomType.Monster (0) for a monster room, and
+  // both sort below RoomType.Treasure (1) — see game/dungeon.ts's
+  // FloorEncounter comment for the full -1-means-boss encoding.
+  if (encounter < RoomType.Treasure) {
     const monsterSeed = monsterSeedFor(runSeed, floor);
-    monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter.boss);
+    // Only -1 (not RoomType.Monster's 0) means boss.
+    monsterTraits = generateMonsterTraits(monsterSeed, floor, encounter < RoomType.Monster);
     battle = createBattle(player, monsterToCombatant(monsterTraits), monsterSeed);
     displayedEnemyHp = battle.enemy.hp;
     state = GameState.Battle;
@@ -252,15 +251,15 @@ function enterFloor(): void {
   monsterTraits = undefined;
   battle = undefined;
 
-  if (encounter.type === RoomType.Treasure) {
+  if (encounter === RoomType.Treasure) {
     treasuresFound += 1;
     eventLines = [`Floor ${floor}: Treasure Room`, 'You find a treasure chest. Collect it or leave it behind?'];
     state = GameState.Event;
   } else {
     trapsFound += 1;
-    const result = resolveTrap(runSeed, floor, floor, player.hp);
-    player.hp = Math.max(1, player.hp - result.damage);
-    eventLines = [`Floor ${floor}: Trap Room`, result.message];
+    const damage = resolveTrap(runSeed, floor, floor, player.hp);
+    player.hp = Math.max(1, player.hp - damage);
+    eventLines = [`Floor ${floor}: Trap Room`, `A hidden trap triggers! You take ${damage} damage.`];
     eventChoiceMade = true;
     state = GameState.Event;
   }
@@ -435,12 +434,16 @@ function confirmSelection(): void {
   }
 
   // state === GameState.Event
-  if (encounter.type === RoomType.Treasure && !eventChoiceMade) {
+  if (encounter === RoomType.Treasure && !eventChoiceMade) {
     if (choice === 'Collect') {
       const result = resolveTreasure(runSeed, floor, TREASURE_MUTATION_CHANCE);
-      player.hp = Math.min(player.maxHp, player.hp + result.heal);
-      eventLines.push(`You find a treasure chest. Healed ${result.heal} HP.`);
-      if (result.foundMutationItem) {
+      // resolveTreasure signs its result: abs(result) is always the heal
+      // amount, and a negative result also means "found a mutation item" —
+      // see the comment on resolveTreasure in game/dungeon.ts.
+      const heal = Math.abs(result);
+      player.hp = Math.min(player.maxHp, player.hp + heal);
+      eventLines.push(`You find a treasure chest. Healed ${heal} HP.`);
+      if (result < 0) {
         pendingMutationBefore = { ...traits };
         pendingMutationReveal = rollMutationItem(rewardRngFor(0x3), player, traits);
         rainbowFruitsFound += 1;
@@ -483,13 +486,10 @@ window.addEventListener('keydown', (e) => {
 
 // Maps a mouse/touch event's client coordinates onto canvas-space pixels,
 // accounting for the CSS-scaled display size (1280x720 is the fixed internal
-// resolution, not the on-screen size).
-function canvasPoint(e: MouseEvent): { x: number; y: number } {
+// resolution, not the on-screen size). Returns a [x, y] tuple.
+function canvasPoint(e: MouseEvent): [number, number] {
   const rect = canvas.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) * (1280 / rect.width),
-    y: (e.clientY - rect.top) * (720 / rect.height),
-  };
+  return [(e.clientX - rect.left) * (1280 / rect.width), (e.clientY - rect.top) * (720 / rect.height)];
 }
 
 // Click/tap support for the command-bar menu. A single tap both selects and
@@ -499,11 +499,13 @@ function canvasPoint(e: MouseEvent): { x: number; y: number } {
 // gesture, and click qualifies just like keydown does.
 canvas.addEventListener('click', (e) => {
   if (fadePhase !== FadePhase.None) return;
-  const { x: mx, y: my } = canvasPoint(e);
+  const [mx, my] = canvasPoint(e);
 
   if (state !== GameState.Title) {
-    const mtb = muteToggleBounds(context, 1280 - 16, 16, isMuted());
-    if (mx >= mtb.x && mx <= mtb.x + mtb.w && my >= mtb.y && my <= mtb.y + mtb.h) {
+    const mtw = muteToggleWidth(context, isMuted());
+    // Fixed toggle bounds in the 1280x720 layout: right edge x=1264, top
+    // y=16, height 34 — see muteToggleWidth's comment in render/ui.ts.
+    if (mx >= 1264 - mtw && mx <= 1264 && my >= 16 && my <= 50) {
       toggleMute();
       return;
     }
@@ -513,10 +515,11 @@ canvas.addEventListener('click', (e) => {
   if (!mb) return;
   const options = currentMenuOptions();
   if (options.length === 0) return;
-  if (mx < mb.x || mx > mb.x + mb.w || my < mb.y || my > mb.y + mb.h) return;
+  // mb is [x, y, width, height, centered] — see MenuRect above.
+  if (mx < mb[0] || mx > mb[0] + mb[2] || my < mb[1] || my > mb[1] + mb[3]) return;
 
-  const rowH = mb.h / options.length;
-  const row = Math.min(options.length - 1, Math.floor((my - mb.y) / rowH));
+  const rowH = mb[3] / options.length;
+  const row = Math.min(options.length - 1, Math.floor((my - mb[1]) / rowH));
   selected = row;
   playConfirm();
   confirmSelection();
@@ -574,13 +577,13 @@ function render(): void {
         context.textAlign = 'left';
       }
       const titleMenu = menuBounds()!;
-      drawMenu(context, titleMenu.x, titleMenu.y, titleMenu.w, titleMenu.h, currentMenuOptions(), selected, true);
+      drawMenu(context, titleMenu[0], titleMenu[1], titleMenu[2], titleMenu[3], currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
       if (__DEV__) drawDevTools(context, 1280);
       return;
     }
 
-    drawMuteToggle(context, 1280 - 16, 16, isMuted());
+    drawMuteToggle(context, isMuted());
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
@@ -610,7 +613,7 @@ function render(): void {
       context.save();
       context.translate(ENEMY_SPRITE_X, 720 * 0.5);
       context.scale(uiScale, uiScale);
-      if (encounter.type === RoomType.Treasure) drawTreasureChest(context, 0, 0, t);
+      if (encounter === RoomType.Treasure) drawTreasureChest(context, 0, 0, t);
       else drawTrapFloor(context, 0, 0, t);
       context.restore();
     } else if (state === GameState.GameOver) {
@@ -635,7 +638,8 @@ function render(): void {
     }
 
     if (state !== GameState.GameOver) {
-      drawFloorBadge(context, 1280 / 2, 16, floor, encounter.boss);
+      // Only -1 means boss; RoomType.Monster (0) is a normal monster room.
+      drawFloorBadge(context, 1280 / 2, 16, floor, encounter < RoomType.Monster);
     }
 
     displayedPlayerHp += (player.hp - displayedPlayerHp) * HP_TWEEN_RATE;
@@ -733,7 +737,7 @@ function render(): void {
         state === GameState.Battle && battle && !isBattleOver(battle) && isVulnerable(battle.enemy)
           ? menuOptions.indexOf('Charm')
           : -1;
-      drawMenu(context, mb.x, mb.y, mb.w, mb.h, menuOptions, selected, mb.centered, charmGlow, t);
+      drawMenu(context, mb[0], mb[1], mb[2], mb[3], menuOptions, selected, mb[4], charmGlow, t);
     }
     drawFadeOverlay(t);
     if (__DEV__) drawDevTools(context, 1280);

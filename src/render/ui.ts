@@ -14,24 +14,21 @@ function panelPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, r);
 }
 
-// rightX is the panel's right edge, so it stays flush against that edge
-// regardless of the text width (which changes slightly with muted state).
-// Exported so main.ts's click handler can hit-test the exact same rect
-// drawMuteToggle draws, instead of duplicating the width math.
-export function muteToggleBounds(
-  ctx: CanvasRenderingContext2D,
-  rightX: number,
-  y: number,
-  muted: boolean
-): { x: number; y: number; w: number; h: number } {
+// The toggle lives at a fixed position in the 1280x720 layout: right edge
+// flush at x=1264, top at y=16, height 34. Only its width varies (the
+// measured text changes slightly with muted state), so this returns just
+// that one scalar — main.ts's click handler rebuilds the same x/y/h
+// constants for hit-testing instead of us shipping a whole bounds object.
+export function muteToggleWidth(ctx: CanvasRenderingContext2D, muted: boolean): number {
   ctx.font = '600 16px sans-serif';
-  const textW = ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width;
-  const w = textW + 28;
-  return { x: rightX - w, y, w, h: 34 };
+  return ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width + 28;
 }
 
-export function drawMuteToggle(ctx: CanvasRenderingContext2D, rightX: number, y: number, muted: boolean): void {
-  const { x, w, h } = muteToggleBounds(ctx, rightX, y, muted);
+export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): void {
+  const w = muteToggleWidth(ctx, muted);
+  const x = 1264 - w;
+  const y = 16;
+  const h = 34;
   const text = `[M]ute [${muted ? 'X' : ' '}]`;
 
   panelPath(ctx, x, y, w, h, h / 2);
@@ -331,7 +328,8 @@ function drawGoldPanel(
   const y = centerY - h / 2;
   const pulse = 0.5 + Math.sin(t / 500) * 0.5;
 
-  ctx.save();
+  // Only fillStyle changes here, and panelPath's own fill below overwrites
+  // it immediately — no transform or alpha state needs a save/restore pair.
   const glow = ctx.createRadialGradient(centerX, centerY, glowR0, centerX, centerY, w * glowScale);
   glow.addColorStop(0, `rgba(255,214,102,${glowA0 + pulse * glowA1})`);
   glow.addColorStop(1, 'rgba(255,214,102,0)');
@@ -339,7 +337,6 @@ function drawGoldPanel(
   ctx.beginPath();
   ctx.arc(centerX, centerY, w * glowScale, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 
   panelPath(ctx, x, y, w, h, radius);
   const grad = ctx.createLinearGradient(x, y, x + w, y + h);

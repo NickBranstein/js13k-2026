@@ -189,12 +189,10 @@ function shadeSet(coat: Coat): Shades {
 }
 
 function contactShadow(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, alpha: number) {
-  ctx.save();
   ctx.fillStyle = `rgba(26,15,40,${alpha})`;
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 }
 
 
@@ -219,7 +217,6 @@ function horseLeg(
   const fetlockY = kneeY + Math.cos(fetlockAngle) * lowerLen;
 
   // Upper leg / shoulder or thigh.
-  ctx.save();
   ctx.beginPath();
   ctx.moveTo(x - width * 0.48, y);
   ctx.quadraticCurveTo(x - width * 0.8, y + upperLen * 0.35, kneeX - width * 0.45, kneeY);
@@ -249,7 +246,6 @@ function horseLeg(
   fillStroke(ctx, front ? '#7a5540' : '#5c3f30', shades.outline, 3);
 
   contactShadow(ctx, fetlockX + hoofW * 0.1, fetlockY + hoofH * 0.82, hoofW * 0.42, hoofH * 0.16, 0.13);
-  ctx.restore();
 }
 
 // ---------- mane / tail ----------
@@ -509,7 +505,6 @@ function drawHorn(
   ctx.fillStyle = '#fff2cf';
   ctx.fill();
 
-  ctx.save();
   hornPath();
   ctx.clip();
   for (let i = 0; i < HORN_TURNS * 2; i++) {
@@ -523,7 +518,6 @@ function drawHorn(
     ctx.lineTo(ww, yy - 3);
     ctx.stroke();
   }
-  ctx.restore();
   ctx.restore();
 }
 

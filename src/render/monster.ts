@@ -35,7 +35,6 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
 
   drawGroundShadow(ctx, r);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   if (variant === BlobVariant.Ooze) {
@@ -75,7 +74,6 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
   ctx.fill();
 
   drawEyes(ctx, 0, -r * 0.05, r * 0.28, r * 0.1);
-  ctx.restore();
 }
 
 function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, palette: MonsterTraits['palette'], t: number): void {
@@ -165,7 +163,6 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
 
   drawGroundShadow(ctx, bodyR * 1.1);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   drawQuadrupedTail(ctx, bodyR, variant, traits.palette, t);
@@ -196,7 +193,6 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
   drawQuadrupedHeadAccessory(ctx, bodyR, variant, traits.palette);
 
   drawEyes(ctx, bodyR * 0.95, -bodyR * 0.3, bodyR * 0.12, bodyR * 0.06);
-  ctx.restore();
 }
 
 function drawWing(ctx: CanvasRenderingContext2D, bodyR: number, flap: number, color: string, big: boolean): void {
@@ -226,7 +222,6 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   drawGroundShadow(ctx, bodyR * 1.1);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   drawWing(ctx, bodyR, flap - 0.3, traits.palette.dark, wingSpan);
@@ -295,7 +290,6 @@ function drawAvian(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   drawWing(ctx, bodyR, flap, traits.palette.base, wingSpan);
   drawEyes(ctx, bodyR * 0.9, -bodyR * 0.45, bodyR * 0.1, bodyR * 0.05);
-  ctx.restore();
 }
 
 function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -306,7 +300,6 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
 
   drawGroundShadow(ctx, bodyR * 2.4 * legLen);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   // legs: 4 per side, bent at a knee point
@@ -350,7 +343,6 @@ function drawArachnid(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: n
   }
 
   drawEyes(ctx, bodyR * 0.6, -bodyR * 0.15, bodyR * 0.16, bodyR * 0.06);
-  ctx.restore();
 }
 
 function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -361,7 +353,6 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
 
   drawGroundShadow(ctx, r);
 
-  ctx.save();
   ctx.translate(0, bob);
 
   // angular gem body — straight-line polygon, no curves
@@ -417,7 +408,6 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
   ctx.beginPath();
   ctx.arc(0, -r * 0.1, r * 0.14, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 }
 
 function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -428,7 +418,6 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
 
   drawGroundShadow(ctx, len * 0.7);
 
-  ctx.save();
   ctx.translate(0, bob);
   ctx.rotate(swim * 0.15);
 
@@ -489,8 +478,6 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     fillStroke(ctx, traits.palette.dark);
     drawEyes(ctx, len * 0.45, -len * 0.02, len * 0.07, len * 0.035);
   }
-
-  ctx.restore();
 }
 
 function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -500,7 +487,6 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
 
   drawGroundShadow(ctx, stemH * 0.5);
 
-  ctx.save();
   ctx.rotate(sway);
 
   // roots
@@ -574,7 +560,6 @@ function drawFlora(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   }
 
   drawEyes(ctx, 0, stemH * 0.02, stemH * 0.1, stemH * 0.04);
-  ctx.restore();
 }
 
 function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -585,7 +570,6 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
   if (variant === RobotVariant.Drone) {
     const hover = Math.sin(t / 300) * 6 * s;
     drawGroundShadow(ctx, r * 0.7);
-    ctx.save();
     ctx.translate(0, hover - r * 0.3);
 
     // ring
@@ -606,13 +590,10 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.restore();
     return;
   }
 
   drawGroundShadow(ctx, r * 1.3);
-
-  ctx.save();
 
   if (variant === RobotVariant.Sentrybot) {
     // wheeled/treaded base + rotating turret top
@@ -693,8 +674,6 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
-
-  ctx.restore();
 }
 
 function drawSwarm(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -745,11 +724,11 @@ export function drawMonster(
   traits: MonsterTraits,
   t: number
 ): void {
-  ctx.save();
+  // No save/restore here — every call site already wraps this in its own
+  // save/translate/scale/restore, so this transform is always undone by the
+  // caller before anything else draws.
   ctx.translate(x, y);
   ctx.scale(-1, 1); // archetypes are drawn facing right by convention; flip to face the player on the left
 
   MONSTER_DRAWERS[traits.archetypeIndex](ctx, traits, t, traits.variant);
-
-  ctx.restore();
 }
