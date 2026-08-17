@@ -108,7 +108,7 @@ function labCategories(): LabCategory[] {
       values: MANE_STYLES,
       apply: (t, i) => {
         t.style = MANE_STYLES[i];
-        t.strandCount = t.style === 'Wispy' ? 4 : t.style === 'Braided' ? 5 : 7;
+        t.strandCount = t.style === 'Braided' ? 5 : 7;
       },
     },
     {

@@ -77,7 +77,10 @@ export function moodStops(m: ManeMood): string[] {
   return out;
 }
 
-export const MANE_STYLES = ['Flowing', 'Curly', 'Braided', 'Wispy'];
+// 'Flowing' was removed as a distinct style; 'Wispy' now takes over its old
+// mechanical behavior (straight, 7 strands) instead of its own — see the
+// strandCount/curl fallbacks below, which no longer special-case 'Wispy'.
+export const MANE_STYLES = ['Curly', 'Braided', 'Wispy'];
 
 // Rainbow Nectar paints a coat pattern over the body barrel, colored from
 // this pool — '' means no pattern (the default for a freshly-generated
@@ -120,7 +123,7 @@ export function generateUnicornTraits(seed: number): UnicornTraits {
   const rng = mulberry32(seed >>> 0);
   const coat = pick(rng, COATS);
   const style = pick(rng, MANE_STYLES);
-  const strandCount = style === 'Wispy' ? 4 : style === 'Braided' ? 5 : 7;
+  const strandCount = style === 'Braided' ? 5 : 7;
   const hornPalette = rollHornPalette(rng);
   const eye = pick(rng, EYE_COLORS);
   const maneStops = rollManeStops(rng);
@@ -289,7 +292,7 @@ function drawMane(
 ) {
   const stops = traits.maneStops;
   const n = traits.strandCount;
-  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : traits.style === 'Wispy' ? 0.3 : 0;
+  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : 0;
 
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
@@ -308,7 +311,7 @@ function drawMane(
 function drawTail(ctx: CanvasRenderingContext2D, x: number, y: number, traits: UnicornTraits, t: number) {
   const stops = traits.maneStops;
   const n = Math.max(5, traits.strandCount);
-  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : traits.style === 'Wispy' ? 0.3 : 0;
+  const curl = traits.style === 'Curly' ? 2.4 : traits.style === 'Braided' ? 1 : 0;
 
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
@@ -587,25 +590,25 @@ function drawBody(
         ctx.fill();
       }
     } else {
+      // Stars: simple sparkle/asterisk marks (4 short radiating lines)
+      // instead of true concave-star polygon math — much cheaper to draw,
+      // still reads clearly as "stars" (and fits the sparkle theme).
+      ctx.lineWidth = bodyRy * 0.05;
       for (let i = 0; i < 7; i++) {
         const a = i * 3.1;
         const px = bodyX + Math.cos(a) * bodyRx * 0.65 * ((i % 3) * 0.35 + 0.3);
         const py = bodyY + Math.sin(a) * bodyRy * 0.75 * ((i % 2) * 0.5 + 0.35);
         const r = bodyRy * 0.16;
         ctx.beginPath();
-        for (let k = 0; k < 5; k++) {
-          const sa = -Math.PI / 2 + (k / 5) * Math.PI * 2;
-          const ox = px + Math.cos(sa) * r;
-          const oy = py + Math.sin(sa) * r;
-          const ia = sa + Math.PI / 5;
-          const ix = px + Math.cos(ia) * r * 0.42;
-          const iy = py + Math.sin(ia) * r * 0.42;
-          if (k === 0) ctx.moveTo(ox, oy);
-          else ctx.lineTo(ox, oy);
-          ctx.lineTo(ix, iy);
-        }
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(px - r, py);
+        ctx.lineTo(px + r, py);
+        ctx.moveTo(px, py - r);
+        ctx.lineTo(px, py + r);
+        ctx.moveTo(px - r * 0.7, py - r * 0.7);
+        ctx.lineTo(px + r * 0.7, py + r * 0.7);
+        ctx.moveTo(px - r * 0.7, py + r * 0.7);
+        ctx.lineTo(px + r * 0.7, py - r * 0.7);
+        ctx.stroke();
       }
     }
 

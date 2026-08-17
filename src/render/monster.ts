@@ -9,7 +9,6 @@
 import {
   type MonsterTraits,
   BlobVariant,
-  QuadrupedVariant,
   AvianVariant,
   ArachnidVariant,
   CrystalVariant,
@@ -76,84 +75,42 @@ function drawBlob(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numbe
   drawEyes(ctx, 0, -r * 0.05, r * 0.28, r * 0.1);
 }
 
-function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, palette: MonsterTraits['palette'], t: number): void {
+// Variant no longer changes the tail/head-accessory shape (Lynx/Boar/Stag
+// now share one silhouette, differing only by name/color) — a deliberate
+// simplification to save space, not a data-driven omission.
+function drawQuadrupedTail(ctx: CanvasRenderingContext2D, bodyR: number, palette: MonsterTraits['palette'], t: number): void {
   const sway = Math.sin(t / 320) * 0.15;
   const baseX = -bodyR * 0.85;
   const baseY = -bodyR * 0.05;
 
   ctx.strokeStyle = OUTLINE;
   ctx.fillStyle = palette.dark;
-
-  if (variant === QuadrupedVariant.Lynx) {
-    // slim whip tail
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(baseX, baseY);
-    ctx.quadraticCurveTo(
-      baseX - bodyR * 0.6,
-      baseY - bodyR * (0.3 + sway),
-      baseX - bodyR * 0.95,
-      baseY - bodyR * (0.05 + sway)
-    );
-    ctx.stroke();
-  } else if (variant === QuadrupedVariant.Boar) {
-    // short curly tail
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(baseX - bodyR * 0.18, baseY - bodyR * 0.12, bodyR * 0.16, 0.2 + sway, Math.PI * 1.6 + sway);
-    ctx.stroke();
-  } else {
-    // Stag: short tail
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(baseX, baseY);
-    ctx.quadraticCurveTo(baseX - bodyR * 0.3, baseY - bodyR * (0.35 + sway), baseX - bodyR * 0.4, baseY - bodyR * (0.5 + sway));
-    ctx.stroke();
-  }
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(baseX, baseY);
+  ctx.quadraticCurveTo(
+    baseX - bodyR * 0.6,
+    baseY - bodyR * (0.3 + sway),
+    baseX - bodyR * 0.95,
+    baseY - bodyR * (0.05 + sway)
+  );
+  ctx.stroke();
 }
 
-function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number, variant: number, palette: MonsterTraits['palette']): void {
+function drawQuadrupedHeadAccessory(ctx: CanvasRenderingContext2D, bodyR: number, palette: MonsterTraits['palette']): void {
   ctx.fillStyle = palette.dark;
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 3;
 
-  if (variant === QuadrupedVariant.Lynx) {
-    // regular pointy ears, angled back from the top of the head
-    [bodyR * 0.62, bodyR * 0.92].forEach((ex) => {
-      ctx.beginPath();
-      ctx.moveTo(ex, -bodyR * 0.45);
-      ctx.lineTo(ex - bodyR * 0.06, -bodyR * 0.75);
-      ctx.lineTo(ex + bodyR * 0.14, -bodyR * 0.55);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    });
-  } else if (variant === QuadrupedVariant.Boar) {
-    // flat snout with two small nostrils, no ears
+  [bodyR * 0.62, bodyR * 0.92].forEach((ex) => {
     ctx.beginPath();
-    ctx.ellipse(bodyR * 1.15, -bodyR * 0.15, bodyR * 0.14, bodyR * 0.1, 0, 0, Math.PI * 2);
+    ctx.moveTo(ex, -bodyR * 0.45);
+    ctx.lineTo(ex - bodyR * 0.06, -bodyR * 0.75);
+    ctx.lineTo(ex + bodyR * 0.14, -bodyR * 0.55);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = OUTLINE;
-    [bodyR * 1.1, bodyR * 1.2].forEach((nx) => {
-      ctx.beginPath();
-      ctx.arc(nx, -bodyR * 0.15, bodyR * 0.02, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  } else {
-    // Stag: branching antlers (main beam + one fork per side)
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = palette.dark;
-    [bodyR * 0.75, bodyR * 1.0].forEach((ax) => {
-      ctx.beginPath();
-      ctx.moveTo(ax, -bodyR * 0.5);
-      ctx.lineTo(ax - bodyR * 0.05, -bodyR * 0.95);
-      ctx.moveTo(ax - bodyR * 0.03, -bodyR * 0.8);
-      ctx.lineTo(ax - bodyR * 0.2, -bodyR * 0.9);
-      ctx.stroke();
-    });
-    ctx.strokeStyle = OUTLINE;
-  }
+  });
 }
 
 function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: number, variant: number): void {
@@ -165,7 +122,7 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
 
   ctx.translate(0, bob);
 
-  drawQuadrupedTail(ctx, bodyR, variant, traits.palette, t);
+  drawQuadrupedTail(ctx, bodyR, traits.palette, t);
 
   // legs
   ctx.fillStyle = traits.palette.dark;
@@ -190,7 +147,7 @@ function drawQuadruped(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: 
   ctx.ellipse(bodyR * 0.85, -bodyR * 0.25, bodyR * 0.38, bodyR * 0.32, 0, 0, Math.PI * 2);
   fillStroke(ctx, traits.palette.light);
 
-  drawQuadrupedHeadAccessory(ctx, bodyR, variant, traits.palette);
+  drawQuadrupedHeadAccessory(ctx, bodyR, traits.palette);
 
   drawEyes(ctx, bodyR * 0.95, -bodyR * 0.3, bodyR * 0.12, bodyR * 0.06);
 }
@@ -349,7 +306,7 @@ function drawCrystal(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: nu
   const s = traits.scale;
   const r = 42 * s;
   const bob = Math.sin(t / 450) * 2 * s;
-  const glow = 0.5 + Math.sin(t / 220) * 0.5;
+  const glow = 0.5 + Math.sin(t / 260) * 0.5;
 
   drawGroundShadow(ctx, r);
 
@@ -421,8 +378,19 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
   ctx.translate(0, bob);
   ctx.rotate(swim * 0.15);
 
+  // All 3 variants now share one flat wide wing-shaped body (deliberate
+  // simplification to save space, rather than each having its own distinct
+  // silhouette) — only the decoration + eye placement still differ.
+  ctx.beginPath();
+  ctx.moveTo(len * 0.7, 0);
+  ctx.quadraticCurveTo(len * 0.1, -len * (0.55 + swim), -len * 0.4, -len * 0.15);
+  ctx.quadraticCurveTo(-len * 0.65, 0, -len * 0.4, len * 0.15);
+  ctx.quadraticCurveTo(len * 0.1, len * (0.55 - swim), len * 0.7, 0);
+  ctx.closePath();
+  fillStroke(ctx, traits.palette.base);
+
   if (variant === SeaCreatureVariant.Crab) {
-    // round shell body + pincers + short legs
+    // pincers + scuttling legs
     const scuttle = Math.sin(t / 200) * 3 * s;
     ctx.strokeStyle = traits.palette.dark;
     ctx.lineWidth = 3 * s;
@@ -433,10 +401,6 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
       ctx.lineTo(lx + scuttle, len * 0.55);
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.ellipse(0, 0, len * 0.55, len * 0.4, 0, 0, Math.PI * 2);
-    fillStroke(ctx, traits.palette.base);
-    // pincers
     [-1, 1].forEach((side) => {
       ctx.beginPath();
       ctx.ellipse(side * len * 0.6, -len * 0.15, len * 0.2, len * 0.14, side * 0.4, 0, Math.PI * 2);
@@ -444,14 +408,6 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     });
     drawEyes(ctx, 0, -len * 0.35, len * 0.14, len * 0.05);
   } else if (variant === SeaCreatureVariant.Ray) {
-    // flat wide body with sweeping wing fins
-    ctx.beginPath();
-    ctx.moveTo(len * 0.7, 0);
-    ctx.quadraticCurveTo(len * 0.1, -len * (0.55 + swim), -len * 0.4, -len * 0.15);
-    ctx.quadraticCurveTo(-len * 0.65, 0, -len * 0.4, len * 0.15);
-    ctx.quadraticCurveTo(len * 0.1, len * (0.55 - swim), len * 0.7, 0);
-    ctx.closePath();
-    fillStroke(ctx, traits.palette.base);
     // tail
     ctx.strokeStyle = traits.palette.dark;
     ctx.lineWidth = 4 * s;
@@ -461,15 +417,7 @@ function drawSeaCreature(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t
     ctx.stroke();
     drawEyes(ctx, len * 0.35, -len * 0.06, len * 0.08, len * 0.04);
   } else {
-    // Pike: elongated fish body with pointed snout + dorsal fin
-    ctx.beginPath();
-    ctx.moveTo(len * 0.75, 0);
-    ctx.quadraticCurveTo(len * 0.2, -len * 0.3, -len * 0.55, -len * 0.12 + swim * len);
-    ctx.quadraticCurveTo(-len * 0.75, 0, -len * 0.55, len * 0.12 - swim * len);
-    ctx.quadraticCurveTo(len * 0.2, len * 0.3, len * 0.75, 0);
-    ctx.closePath();
-    fillStroke(ctx, traits.palette.base);
-    // dorsal fin
+    // Pike: dorsal fin
     ctx.beginPath();
     ctx.moveTo(-len * 0.05, -len * 0.22);
     ctx.lineTo(len * 0.15, -len * 0.5);
@@ -654,17 +602,6 @@ function drawRobot(ctx: CanvasRenderingContext2D, traits: MonsterTraits, t: numb
     ctx.beginPath();
     ctx.roundRect(-r * 0.32, -r * 1.05, r * 0.64, r * 0.55, r * 0.08);
     fillStroke(ctx, traits.palette.light);
-    // antenna
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, -r * 1.05);
-    ctx.lineTo(0, -r * 1.3);
-    ctx.stroke();
-    ctx.fillStyle = `rgba(224,180,92,${0.5 + glow * 0.5})`;
-    ctx.beginPath();
-    ctx.arc(0, -r * 1.3, r * 0.06, 0, Math.PI * 2);
-    ctx.fill();
     // eye lens
     ctx.fillStyle = `rgba(127,224,224,${0.5 + glow * 0.5})`;
     ctx.beginPath();

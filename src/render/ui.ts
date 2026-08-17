@@ -59,7 +59,7 @@ function drawPanelBg(
   stops: [number, string][] = [
     [0, 'rgba(122,58,112,0.9)'],
     [0.55, 'rgba(88,52,132,0.9)'],
-    [1, 'rgba(53,32,84,0.92)'],
+    [1, 'rgba(53,32,84,0.9)'],
   ],
   borderColor = PANEL_BORDER
 ): void {
@@ -406,7 +406,7 @@ export function drawMutationReveal(
   ctx.font = '700 20px sans-serif';
   ctx.fillText('✨ Rainbow Fruit Found! ✨', centerX, y + 26);
 
-  ctx.font = '800 28px sans-serif';
+  ctx.font = '800 26px sans-serif';
   ctx.fillText(name, centerX, y + 68);
 
   ctx.font = '600 17px sans-serif';

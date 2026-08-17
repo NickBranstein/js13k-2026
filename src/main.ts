@@ -58,12 +58,18 @@ const context = canvas.getContext('2d')!;
 const GAME_TITLE = '🦄 Rainbow Depths';
 const GAME_SUBTITLE = 'A unicorn dungeon crawl';
 
-const enum GameState { Title, Battle, Event, MutationReveal, MutationTransform, GameOver }
+const enum GameState { Title, Battle, Event, MutationReveal, MutationTransform, GameOver, Win }
 
 let runSeed = 0;
 let floor = 1;
 let traits: UnicornTraits;
 let player: Combatant;
+// The charisma player started this specific run with (baseline stat +
+// permanent dust bonus) — checkVictory() only fires once charisma rises
+// past 90 *during* the run, not just because the permanent baseline already
+// sits there, so a heavily-boosted player can still play a normal run
+// instead of being bounced back to the Win screen on every "New Run".
+let runStartCharisma = 0;
 let progression: Progression;
 let inventory = 0; // consumable potion count
 let state: GameState = GameState.Title;
@@ -92,7 +98,21 @@ let pendingMutationBefore: UnicornTraits | null = null;
 let transformStart: number | null = null;
 const TRANSFORM_DURATION = 1600;
 
+// 90 matches game/battle.ts's charmChance() hard cap — once charisma alone
+// reaches it, every charm attempt is already guaranteed, so that's the
+// natural "you've become irresistible" win threshold. Requiring a rise
+// above runStartCharisma (not just the raw >= 90 check) is what stops a
+// heavily-boosted player from being bounced straight back to the Win
+// screen on every single run — see runStartCharisma's comment.
+function checkVictory(): boolean {
+  if (player.charisma < 90 || player.charisma <= runStartCharisma) return false;
+  stopAmbient();
+  state = GameState.Win;
+  return true;
+}
+
 function tryAdvanceOrReveal(): void {
+  if (checkVictory()) return;
   if (pendingMutationReveal) {
     state = GameState.MutationReveal;
     return;
@@ -138,6 +158,18 @@ function transitionTo(action: () => void): void {
   fadeStart = performance.now();
 }
 
+// Abandons whatever's currently happening and returns to Title — used both
+// by the GameOver/Win "Title Screen" option and by pressing Escape to end a
+// run early. No lifetime-stat recording or dust drop happens here (those
+// are earned by actually finishing a run via Defeat), so this can't be used
+// to farm rewards by quitting right after a boss kill.
+function returnToTitle(): void {
+  stopAmbient();
+  state = GameState.Title;
+  traits = generateUnicornTraits(Math.floor(Math.random() * 1000000));
+  selected = 0;
+}
+
 function monsterToCombatant(m: MonsterTraits): Combatant {
   return { name: m.name, hp: m.hp, maxHp: m.maxHp, atk: m.atk, def: m.def, charisma: 0 };
 }
@@ -160,7 +192,7 @@ function currentMenuOptions(): string[] {
   if (state === GameState.MutationTransform) {
     return transformStart !== null && performance.now() - transformStart < TRANSFORM_DURATION ? [] : ['Continue'];
   }
-  if (state === GameState.GameOver) return ['New Run', 'Title Screen'];
+  if (state === GameState.GameOver || state === GameState.Win) return ['New Run', 'Title Screen'];
   if (state === GameState.Battle) {
     if (!battle) return [];
     if (isBattleOver(battle)) return battle.phase === BattlePhase.Defeat ? ['Continue'] : ['Proceed'];
@@ -191,6 +223,9 @@ function menuBounds(): MenuRect | null {
   if (state === GameState.MutationTransform) {
     if (currentMenuOptions().length === 0) return null;
     return [1280 / 2 - 90, modalCenterY + 520 / 2 - 66, 180, 48, true];
+  }
+  if (state === GameState.Win) {
+    return [1280 / 2 - 142, 720 - 170, 284, 150, true];
   }
   return [1280 - 340, 720 - 200, 284, 150, false];
 }
@@ -291,6 +326,7 @@ function startRun(): void {
   player.atk += bonus[1];
   player.def += bonus[2];
   player.charisma += bonus[3];
+  runStartCharisma = player.charisma;
   progression = createProgression();
   inventory = 0;
   floor = 1;
@@ -303,6 +339,8 @@ function startRun(): void {
   pendingMutationReveal = null;
   pendingMutationBefore = null;
   transformStart = null;
+  // No checkVictory() call here — it can never legitimately fire this early
+  // now, since runStartCharisma is set to this exact charisma value above.
   startAmbient();
   enterFloor();
 }
@@ -388,17 +426,9 @@ function confirmSelection(): void {
     return;
   }
 
-  if (state === GameState.GameOver) {
-    if (choice === 'Title Screen') {
-      transitionTo(() => {
-        stopAmbient();
-        state = GameState.Title;
-        traits = generateUnicornTraits(Math.floor(Math.random() * 1000000));
-        selected = 0;
-      });
-    } else {
-      transitionTo(startRun);
-    }
+  if (state === GameState.GameOver || state === GameState.Win) {
+    if (choice === 'Title Screen') transitionTo(returnToTitle);
+    else transitionTo(startRun);
     return;
   }
 
@@ -505,6 +535,13 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (fadePhase !== FadePhase.None) return;
+  // Escape ends the current run early and returns to Title — available any
+  // time a run is actually in progress (not already on Title/GameOver/Win,
+  // which have their own menu options for this).
+  if (e.key === 'Escape' && state !== GameState.Title && state !== GameState.GameOver && state !== GameState.Win) {
+    transitionTo(returnToTitle);
+    return;
+  }
   const advance = e.key === 'Enter' || e.key === ' ';
   const options = currentMenuOptions();
   if (options.length === 0) return;
@@ -657,7 +694,7 @@ function drawBestiary(t: number): void {
 
   context.beginPath();
   context.roundRect(bx, by, bw, bh, 18);
-  context.fillStyle = 'rgba(53,32,84,0.95)';
+  context.fillStyle = 'rgba(53,32,84,0.85)';
   context.fill();
   context.lineWidth = 2.5;
   context.strokeStyle = PANEL_BORDER;
@@ -665,11 +702,11 @@ function drawBestiary(t: number): void {
 
   context.textAlign = 'center';
   context.fillStyle = TEXT_COLOR;
-  context.font = '700 22px sans-serif';
+  context.font = '700 20px sans-serif';
   context.textBaseline = 'top';
   context.fillText('Bestiary', 1280 / 2, by + 12);
 
-  context.font = '700 17px sans-serif';
+  context.font = '700 16px sans-serif';
   context.fillStyle = 'rgba(244,236,255,0.85)';
   context.fillText(`${ARCHETYPE_NAMES[a]}s`, 1280 / 2, by + 40);
 
@@ -684,7 +721,7 @@ function drawBestiary(t: number): void {
   }
   const base = archetypePreview(a, 0, 0);
   context.font = '600 13px sans-serif';
-  context.fillStyle = 'rgba(244,236,255,0.75)';
+  context.fillStyle = 'rgba(244,236,255,0.7)';
   context.fillText(
     anySeen ? `HP ${base.hp}  ·  ATK ${base.atk}  ·  DEF ${base.def}` : 'HP ???  ·  ATK ???  ·  DEF ???',
     1280 / 2,
@@ -725,7 +762,7 @@ function drawBestiary(t: number): void {
 
         context.textAlign = 'center';
         context.textBaseline = 'top';
-        context.font = '600 12px sans-serif';
+        context.font = '600 13px sans-serif';
         context.fillStyle = TEXT_COLOR;
         context.fillText(preview.name, colMidX, rowY + BESTIARY_ROW_H - 20);
       } else {
@@ -735,13 +772,65 @@ function drawBestiary(t: number): void {
         context.fill();
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.font = '700 30px sans-serif';
+        context.font = '700 28px sans-serif';
         context.fillStyle = 'rgba(244,236,255,0.4)';
         context.fillText('?', colMidX, rowY + 78);
       }
     }
   }
   context.textAlign = 'left';
+}
+
+// The game's only true win condition — reaching the charm-chance hard cap
+// (see checkVictory). A full-screen celebration takeover, same shape as the
+// Title branch in render(): no combat HUD, just the moment.
+function drawWin(t: number): void {
+  // drawBackdrop() already painted the pastel sky behind this — no need for
+  // a second background here.
+  // Sparkles: fixed deterministic spread, cheap twinkle via an alpha pulse.
+  for (let i = 0; i < 30; i++) {
+    context.globalAlpha = 0.3 + 0.5 * Math.abs(Math.sin(t / 300 + i));
+    context.fillStyle = '#fff2cf'; // matches the unicorn horn's color — a
+    // free byte win, since it's an exact repeat of an existing string.
+    context.beginPath();
+    context.arc((i * 173) % 1280, (i * 97) % 560, 2 + (i % 3), 0, Math.PI * 2);
+    context.fill();
+  }
+  context.globalAlpha = 1;
+
+  context.save();
+  context.translate(1280 / 2 - 130, 720 * 0.62);
+  context.scale(0.9, 0.9);
+  drawUnicorn(context, traits, t);
+  context.restore();
+
+  if (monsterTraits) {
+    context.save();
+    context.translate(1280 / 2 + 150, 720 * 0.58);
+    context.scale(0.9, 0.9);
+    drawMonster(context, 0, 0, monsterTraits, t);
+    context.restore();
+  }
+
+  drawTransformPanel(context, 1280 / 2, 150, 820, 220, t);
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  context.fillStyle = GOLD_TEXT;
+  context.font = '800 30px sans-serif';
+  context.fillText('🌈 You Win! 🌈', 1280 / 2, 60);
+
+  context.font = '600 17px sans-serif';
+  const lines = wrapText(
+    context,
+    'You have become so irresistible that you and the monster live in harmony forever.',
+    700
+  );
+  lines.forEach((line, i) => context.fillText(line, 1280 / 2, 110 + i * 26));
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
+
+  const menu = menuBounds()!;
+  drawMenu(context, menu[0], menu[1], menu[2], menu[3], currentMenuOptions(), selected, true);
 }
 
 function drawFadeOverlay(t: number): void {
@@ -789,7 +878,7 @@ function render(): void {
 
       drawTitleCard(context, 48, 40, GAME_TITLE, GAME_SUBTITLE, t);
       if (lifetimeStats.bestFloor > 0) {
-        context.font = '700 18px sans-serif';
+        context.font = '700 16px sans-serif';
         context.fillStyle = GOLD_TEXT;
         context.textAlign = 'right';
         context.fillText(`🏆 Best Floor: ${lifetimeStats.bestFloor}`, 1280 - 48, 720 - 48);
@@ -806,6 +895,13 @@ function render(): void {
       drawMenu(context, titleMenu[0], titleMenu[1], titleMenu[2], titleMenu[3], currentMenuOptions(), selected, true);
       drawFadeOverlay(t);
       drawBestiary(t);
+      if (__DEV__) drawDevTools(context, 1280);
+      return;
+    }
+
+    if (state === GameState.Win) {
+      drawWin(t);
+      drawFadeOverlay(t);
       if (__DEV__) drawDevTools(context, 1280);
       return;
     }
