@@ -80,7 +80,10 @@ let battleRewardsGranted = false;
 let eventLines: string[] = [];
 let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
-let dustMessage = '';
+// Per-kind drop count for the run in progress — one roll per boss defeated
+// (Victory or Charmed), not just one per run. Reset in startRun(), read by
+// the GameOver summary's "This Run" column.
+let thisRunDust = [0, 0, 0, 0];
 let selected = 0;
 let lifetimeStats: LifetimeStats = loadLifetimeStats();
 let heldDust = loadHeld();
@@ -352,6 +355,7 @@ function startRun(): void {
   treasuresFound = 0;
   trapsFound = 0;
   rainbowFruitsFound = 0;
+  thisRunDust = [0, 0, 0, 0];
   pendingMutationReveal = null;
   pendingMutationBefore = null;
   transformStart = null;
@@ -393,6 +397,13 @@ function maybeGrantBattleRewards(): void {
     pendingMutationBefore = { ...traits };
     pendingMutationReveal = rollMutationItem(rewardRngFor(0x2), player, traits);
     rainbowFruitsFound += 1;
+
+    // One Mysterious item per boss defeated (Victory or Charmed), not just
+    // one per run — see game/dust.ts's DropResult.
+    const [kind, cashedIn, cashedIns] = grantDust(heldDust, dustCashedIns);
+    dustCashedIns = cashedIns;
+    thisRunDust[kind] += 1;
+    battle!.log.push(`✨ Mysterious ${ITEM_NAMES[kind]} found${cashedIn ? ' — collection complete!' : '.'}`);
   }
 }
 
@@ -460,17 +471,6 @@ function confirmSelection(): void {
         stopAmbient();
         transitionTo(() => {
           gameOverLines = [...battle!.log, `Fell on Floor ${floor}.`];
-          // A mystery only drops for a run that defeated at least one boss —
-          // makes the drop feel earned rather than a guaranteed consolation
-          // prize for every death.
-          if (bossesDefeated > 0) {
-            // [kind, cashedIn, cashedIns] — see game/dust.ts's DropResult.
-            const [kind, cashedIn, cashedIns] = grantDust(heldDust, dustCashedIns);
-            dustCashedIns = cashedIns;
-            dustMessage = `✨ Mysterious ${ITEM_NAMES[kind]} found${cashedIn ? ' — collection complete!' : '.'}`;
-          } else {
-            dustMessage = '';
-          }
           lifetimeStats = recordRun(lifetimeStats, {
             floor,
             level: progression.level,
@@ -967,12 +967,24 @@ function render(): void {
       else drawTrapFloor(context, 0, 0, t);
       context.restore();
     } else if (state === GameState.GameOver) {
+      // A kind is "known" (shows its real name in the label instead of
+      // "???") once you've ever held one of it, or once any set has ever
+      // been cashed in (which requires having held all 4 at once) — no
+      // separate tracking needed, both facts already live in
+      // heldDust/dustCashedIns. heldDust alone resets a kind's count to 0 on
+      // every cash-in, so dustCashedIns > 0 is what keeps it revealed
+      // afterward instead of reverting to a mystery.
+      const dustRows: [string, number | string, number | string][] = ITEM_NAMES.map((name, i) => [
+        dustCashedIns > 0 || heldDust[i] > 0 ? `Mysterious ${name}` : '???',
+        thisRunDust[i],
+        heldDust[i],
+      ]);
       drawRunSummary(
         context,
         1280 / 2,
-        720 * 0.44,
+        270,
         560,
-        380,
+        400,
         {
           floorReached: floor,
           level: progression.level,
@@ -984,7 +996,7 @@ function render(): void {
         },
         lifetimeStats,
         t,
-        dustMessage
+        dustRows
       );
     }
 

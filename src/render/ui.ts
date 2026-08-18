@@ -426,7 +426,7 @@ export function drawRunSummary(
   stats: RunStats,
   lifetime: LifetimeStats,
   t: number,
-  dustMessage = ''
+  dustRows: [string, number | string, number | string][]
 ): void {
   drawGoldPanel(ctx, centerX, centerY, w, h, t);
   const x = centerX - w / 2;
@@ -445,7 +445,10 @@ export function drawRunSummary(
   ctx.fillText('This Run', colRunX, y + 62);
   ctx.fillText('Lifetime', colLifeX, y + 62);
 
-  const rows: [string, number, number][] = [
+  // The 4 Mysterious-item rows (dustRows) are appended to the same list so
+  // they read as ordinary stats — same columns, same styling — instead of a
+  // separate one-off summary line.
+  const rows: [string, number | string, number | string][] = [
     ['Floor Reached', stats.floorReached, lifetime.bestFloor],
     ['Level', stats.level, lifetime.bestLevel],
     ['Monsters Defeated', stats.monstersDefeated, lifetime.monstersDefeated],
@@ -453,11 +456,12 @@ export function drawRunSummary(
     ['Treasures Found', stats.treasuresFound, lifetime.treasuresFound],
     ['Traps Found', stats.trapsFound, lifetime.trapsFound],
     ['Rainbow Fruits Found', stats.rainbowFruitsFound, lifetime.rainbowFruitsFound],
+    ...dustRows,
   ];
 
-  const rowH = 34;
-  const startY = y + 90;
-  ctx.font = '600 16px sans-serif';
+  const rowH = 28;
+  const startY = y + 80;
+  ctx.font = '600 15px sans-serif';
   rows.forEach(([label, val, lifeVal], i) => {
     const rowY = startY + i * rowH;
     ctx.textAlign = 'left';
@@ -465,18 +469,11 @@ export function drawRunSummary(
     ctx.fillText(label, x + 30, rowY);
 
     ctx.textAlign = 'right';
-    ctx.font = '700 16px sans-serif';
+    ctx.font = '700 15px sans-serif';
     ctx.fillText(String(val), colRunX, rowY);
-    ctx.font = '600 16px sans-serif';
+    ctx.font = '600 15px sans-serif';
     ctx.fillText(String(lifeVal), colLifeX, rowY);
   });
-
-  if (dustMessage) {
-    ctx.textAlign = 'center';
-    ctx.font = '600 15px sans-serif';
-    ctx.fillStyle = GOLD_TEXT;
-    ctx.fillText(dustMessage, centerX, y + h - 24);
-  }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
