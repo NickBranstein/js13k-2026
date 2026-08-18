@@ -56,7 +56,7 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const context = canvas.getContext('2d')!;
 
 const GAME_TITLE = '🦄 Rainbow Depths';
-const GAME_SUBTITLE = 'A unicorn dungeon crawl';
+const GAME_SUBTITLE = 'Charm your way to happily ever after in a unicorn dungeon crawl';
 
 const enum GameState { Title, Battle, Event, MutationReveal, MutationTransform, GameOver, Win }
 
