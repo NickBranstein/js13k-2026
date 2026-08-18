@@ -662,6 +662,36 @@ function drawBestiaryButton(): void {
   context.textBaseline = 'alphabetic';
 }
 
+// Same pill style as the mute toggle/Bestiary button, and same row —
+// another 10px gap to the left of the Bestiary button. Not a button (no
+// click handler) — Escape has no touch equivalent, so there's nothing
+// useful to make clickable here.
+const ESCAPE_LABEL = '[Esc] End Run';
+
+function drawEscapeHint(): void {
+  context.font = '600 16px sans-serif';
+  const w = context.measureText(ESCAPE_LABEL).width + 28;
+  const mtw = muteToggleWidth(context, isMuted());
+  const bw = bestiaryButtonWidth();
+  const x = 1264 - mtw - 10 - bw - 10 - w;
+  const y = 16;
+  const h = 34;
+  context.beginPath();
+  context.roundRect(x, y, w, h, h / 2);
+  context.fillStyle = 'rgba(53,32,84,0.85)';
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = PANEL_BORDER;
+  context.stroke();
+
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillStyle = TEXT_COLOR;
+  context.fillText(ESCAPE_LABEL, x + w / 2, y + h / 2 + 1);
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
+}
+
 const ARCHETYPE_COUNT = 9;
 const BESTIARY_PREFIXES = 4;
 const BESTIARY_VARIANTS = 3;
@@ -918,6 +948,7 @@ function render(): void {
 
     drawMuteToggle(context, isMuted());
     drawBestiaryButton();
+    if (state !== GameState.GameOver) drawEscapeHint();
 
     const playerLunge = animOffset(playerAttackAnimStart, t, LUNGE_DURATION, LUNGE_DISTANCE);
     const playerHitP = animProgress(playerHitAnimStart, t, HIT_DURATION);
