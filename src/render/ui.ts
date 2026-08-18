@@ -24,12 +24,12 @@ export function muteToggleWidth(ctx: CanvasRenderingContext2D, muted: boolean): 
   return ctx.measureText(`[M]ute [${muted ? 'X' : ' '}]`).width + 28;
 }
 
-export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): void {
-  const w = muteToggleWidth(ctx, muted);
-  const x = 1264 - w;
+// Shared visual for every top-right pill (mute toggle, Bestiary button,
+// Escape hint) — fixed 34px height, right-edge-flush row at y=16 by
+// convention at each call site.
+export function drawPillButton(ctx: CanvasRenderingContext2D, x: number, w: number, text: string): void {
   const y = 16;
   const h = 34;
-  const text = `[M]ute [${muted ? 'X' : ' '}]`;
 
   panelPath(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(53,32,84,0.85)';
@@ -40,11 +40,17 @@ export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): v
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.font = '600 16px sans-serif';
   ctx.fillStyle = TEXT_COLOR;
   ctx.fillText(text, x + w / 2, y + h / 2 + 1);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
+}
+
+export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): void {
+  const w = muteToggleWidth(ctx, muted);
+  drawPillButton(ctx, 1264 - w, w, `[M]ute [${muted ? 'X' : ' '}]`);
 }
 
 // Shared soft pastel-gradient panel background + border + a gentle top sheen,

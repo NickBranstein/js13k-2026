@@ -19,6 +19,7 @@ import {
   drawLevelBadge,
   drawMuteToggle,
   muteToggleWidth,
+  drawPillButton,
 } from './render/ui';
 import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter, RoomType } from './game/dungeon';
@@ -643,23 +644,7 @@ function drawBestiaryButton(): void {
   // 1264 - mtw is the mute toggle's left edge (see muteToggleWidth's comment
   // in render/ui.ts); this button sits another 10px gap to the left of that.
   const x = 1264 - mtw - 10 - bw;
-  const y = 16;
-  const h = 34;
-  context.beginPath();
-  context.roundRect(x, y, bw, h, h / 2);
-  context.fillStyle = 'rgba(53,32,84,0.85)';
-  context.fill();
-  context.lineWidth = 2;
-  context.strokeStyle = PANEL_BORDER;
-  context.stroke();
-
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.font = '600 16px sans-serif';
-  context.fillStyle = TEXT_COLOR;
-  context.fillText(BESTIARY_LABEL, x + bw / 2, y + h / 2 + 1);
-  context.textAlign = 'left';
-  context.textBaseline = 'alphabetic';
+  drawPillButton(context, x, bw, BESTIARY_LABEL);
 }
 
 // Same pill style as the mute toggle/Bestiary button, and same row —
@@ -674,22 +659,7 @@ function drawEscapeHint(): void {
   const mtw = muteToggleWidth(context, isMuted());
   const bw = bestiaryButtonWidth();
   const x = 1264 - mtw - 10 - bw - 10 - w;
-  const y = 16;
-  const h = 34;
-  context.beginPath();
-  context.roundRect(x, y, w, h, h / 2);
-  context.fillStyle = 'rgba(53,32,84,0.85)';
-  context.fill();
-  context.lineWidth = 2;
-  context.strokeStyle = PANEL_BORDER;
-  context.stroke();
-
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.fillStyle = TEXT_COLOR;
-  context.fillText(ESCAPE_LABEL, x + w / 2, y + h / 2 + 1);
-  context.textAlign = 'left';
-  context.textBaseline = 'alphabetic';
+  drawPillButton(context, x, w, ESCAPE_LABEL);
 }
 
 const ARCHETYPE_COUNT = 9;
