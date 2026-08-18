@@ -20,6 +20,7 @@ import {
   drawMuteToggle,
   muteToggleWidth,
   drawPillButton,
+  drawPanelBg,
 } from './render/ui';
 import { GOLD_TEXT, TEXT_COLOR, PANEL_BORDER } from './render/shared';
 import { generateFloorEncounter, resolveTrap, resolveTreasure, type FloorEncounter, RoomType } from './game/dungeon';
@@ -696,13 +697,7 @@ function drawBestiary(t: number): void {
   const [bx, by, bw, bh] = bestiaryPanelRect();
   const a = bestiaryPage;
 
-  context.beginPath();
-  context.roundRect(bx, by, bw, bh, 18);
-  context.fillStyle = 'rgba(53,32,84,0.85)';
-  context.fill();
-  context.lineWidth = 2.5;
-  context.strokeStyle = PANEL_BORDER;
-  context.stroke();
+  drawPanelBg(context, bx, by, bw, bh, 18);
 
   context.textAlign = 'center';
   context.fillStyle = TEXT_COLOR;

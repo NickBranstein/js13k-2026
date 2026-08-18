@@ -55,7 +55,7 @@ export function drawMuteToggle(ctx: CanvasRenderingContext2D, muted: boolean): v
 
 // Shared soft pastel-gradient panel background + border + a gentle top sheen,
 // used by every UI box so they read as one cohesive, rounded style.
-function drawPanelBg(
+export function drawPanelBg(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
