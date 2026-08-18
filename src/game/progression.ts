@@ -40,6 +40,7 @@ export function grantXp(progression: Progression, player: Combatant, xpGain: num
     levelsGained += 1;
 
     player.maxHp += 8;
+    player.hp += 8;
     player.atk += 2;
     player.def += 1;
 
