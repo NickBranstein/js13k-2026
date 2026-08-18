@@ -112,11 +112,20 @@ function checkVictory(): boolean {
 }
 
 function tryAdvanceOrReveal(): void {
-  if (checkVictory()) return;
+  // A pending mutation reveal always takes priority over the victory check.
+  // rollMutationItem() applies its stat boost the instant it's rolled (see
+  // maybeGrantBattleRewards/the Treasure branch below), so a charisma-boosting
+  // item can cross the win threshold before its own reveal has been shown.
+  // Checking victory first would jump straight to the Win screen and
+  // silently swallow that reveal — the player would never see what they
+  // found. Showing the reveal here, then re-checking victory once it's
+  // dismissed (in confirmSelection's MutationTransform branch), guarantees
+  // the reveal is always seen before a win can end the run.
   if (pendingMutationReveal) {
     state = GameState.MutationReveal;
     return;
   }
+  if (checkVictory()) return;
   advanceFloor();
 }
 
@@ -168,6 +177,13 @@ function returnToTitle(): void {
   state = GameState.Title;
   traits = generateUnicornTraits(Math.floor(Math.random() * 1000000));
   selected = 0;
+  // Escape can fire mid-reveal (state MutationReveal/MutationTransform never
+  // excludes it), abandoning an unshown/undismissed item — clear it here so
+  // nothing dangles between now and the next startRun(), which would null
+  // these anyway but only once a new run actually begins.
+  pendingMutationReveal = null;
+  pendingMutationBefore = null;
+  transformStart = null;
 }
 
 function monsterToCombatant(m: MonsterTraits): Combatant {
@@ -422,6 +438,10 @@ function confirmSelection(): void {
     pendingMutationReveal = null;
     pendingMutationBefore = null;
     transformStart = null;
+    // Check victory right here, now that the item's stat boost has actually
+    // been shown to the player — see tryAdvanceOrReveal's comment for why
+    // this can't happen before the reveal.
+    if (checkVictory()) return;
     advanceFloor();
     return;
   }
