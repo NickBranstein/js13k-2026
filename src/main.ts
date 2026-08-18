@@ -78,7 +78,6 @@ let monsterTraits: MonsterTraits | undefined;
 let battle: BattleState | undefined;
 let battleRewardsGranted = false;
 let eventLines: string[] = [];
-let eventChoiceMade = false; // Treasure: has Collect/Leave been chosen yet?
 let gameOverLines: string[] = [];
 // Per-kind drop count for the run in progress — one roll per boss defeated
 // (Victory or Charmed), not just one per run. Reset in startRun(), read by
@@ -221,7 +220,6 @@ function currentMenuOptions(): string[] {
     return options;
   }
   // state === GameState.Event
-  if (encounter === RoomType.Treasure && !eventChoiceMade) return ['Collect', 'Leave'];
   return ['Proceed'];
 }
 
@@ -291,7 +289,6 @@ let vulnerableMessageAnimStart = 0;
 function enterFloor(): void {
   encounter = generateFloorEncounter(runSeed, floor);
   selected = 0;
-  eventChoiceMade = false;
   battleRewardsGranted = false;
   vulnerableMessageShown = false;
   vulnerableMessageLogIndex = -1;
@@ -316,14 +313,24 @@ function enterFloor(): void {
 
   if (encounter === RoomType.Treasure) {
     treasuresFound += 1;
-    eventLines = [`Floor ${floor}: Treasure Room`, 'You find a treasure chest. Collect it or leave it behind?'];
+    const result = resolveTreasure(runSeed, floor, TREASURE_MUTATION_CHANCE);
+    // resolveTreasure signs its result: abs(result) is always the heal
+    // amount, and a negative result also means "found a mutation item" —
+    // see the comment on resolveTreasure in game/dungeon.ts.
+    const heal = Math.abs(result);
+    player.hp = Math.min(player.maxHp, player.hp + heal);
+    eventLines = [`Floor ${floor}: Treasure Room`, `You find a treasure chest. Healed ${heal} HP.`];
+    if (result < 0) {
+      pendingMutationBefore = { ...traits };
+      pendingMutationReveal = rollMutationItem(rewardRngFor(0x3), player, traits);
+      rainbowFruitsFound += 1;
+    }
     state = GameState.Event;
   } else {
     trapsFound += 1;
     const damage = resolveTrap(runSeed, floor, floor, player.hp);
     player.hp = Math.max(1, player.hp - damage);
     eventLines = [`Floor ${floor}: Trap Room`, `A hidden trap triggers! You take ${damage} damage.`];
-    eventChoiceMade = true;
     state = GameState.Event;
   }
 }
@@ -508,29 +515,6 @@ function confirmSelection(): void {
     triggerCombatAnims(enemyHpBefore, playerHpBefore, wasAttack);
     maybeGrantBattleRewards();
     if (isBattleOver(battle)) selected = 0;
-    return;
-  }
-
-  // state === GameState.Event
-  if (encounter === RoomType.Treasure && !eventChoiceMade) {
-    if (choice === 'Collect') {
-      const result = resolveTreasure(runSeed, floor, TREASURE_MUTATION_CHANCE);
-      // resolveTreasure signs its result: abs(result) is always the heal
-      // amount, and a negative result also means "found a mutation item" —
-      // see the comment on resolveTreasure in game/dungeon.ts.
-      const heal = Math.abs(result);
-      player.hp = Math.min(player.maxHp, player.hp + heal);
-      eventLines.push(`You find a treasure chest. Healed ${heal} HP.`);
-      if (result < 0) {
-        pendingMutationBefore = { ...traits };
-        pendingMutationReveal = rollMutationItem(rewardRngFor(0x3), player, traits);
-        rainbowFruitsFound += 1;
-      }
-    } else {
-      eventLines.push('You leave the treasure untouched.');
-    }
-    eventChoiceMade = true;
-    selected = 0;
     return;
   }
 
