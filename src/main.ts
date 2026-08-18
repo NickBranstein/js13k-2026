@@ -185,6 +185,10 @@ function returnToTitle(): void {
   // excludes it), abandoning an unshown/undismissed item — clear it here so
   // nothing dangles between now and the next startRun(), which would null
   // these anyway but only once a new run actually begins.
+  resetMutationState();
+}
+
+function resetMutationState(): void {
   pendingMutationReveal = null;
   pendingMutationBefore = null;
   transformStart = null;
@@ -365,9 +369,7 @@ function startRun(): void {
   trapsFound = 0;
   rainbowFruitsFound = 0;
   thisRunDust = [0, 0, 0, 0];
-  pendingMutationReveal = null;
-  pendingMutationBefore = null;
-  transformStart = null;
+  resetMutationState();
   // No checkVictory() call here — it can never legitimately fire this early
   // now, since runStartCharisma is set to this exact charisma value above.
   startAmbient();
@@ -455,9 +457,7 @@ function confirmSelection(): void {
   }
 
   if (state === GameState.MutationTransform) {
-    pendingMutationReveal = null;
-    pendingMutationBefore = null;
-    transformStart = null;
+    resetMutationState();
     // Check victory right here, now that the item's stat boost has actually
     // been shown to the player — see tryAdvanceOrReveal's comment for why
     // this can't happen before the reveal.
