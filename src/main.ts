@@ -1,5 +1,5 @@
 import { generateUnicornTraits, drawUnicorn, type UnicornTraits } from './render/unicorn';
-import { generateMonsterTraits, archetypePreview, type MonsterTraits } from './game/monster';
+import { generateMonsterTraits, archetypePreview, Archetype, type MonsterTraits } from './game/monster';
 import { loadLifetimeStats, recordRun, type LifetimeStats } from './game/stats';
 import { loadHeld, loadCashedIns, grantDust, dustBonusTotals, ITEM_NAMES } from './game/dust';
 import { loadEncountered, markEncountered, variantKey } from './game/bestiary';
@@ -684,7 +684,7 @@ const BESTIARY_VARIANTS = 3;
 const BESTIARY_COL_W = 220;
 const BESTIARY_ROW_H = 180;
 const BESTIARY_HEADER_H = 100;
-const BESTIARY_SCALE = 0.55;
+const BESTIARY_SCALE = 0.85;
 
 // Display names for the Bestiary's page title — must stay in the same order
 // as game/monster.ts's Archetype enum / MONSTER_DRAWERS.
@@ -765,6 +765,12 @@ function drawBestiary(t: number): void {
 
   const gx = bx + 20;
   const gy = by + BESTIARY_HEADER_H;
+  // Flora draws from a ground-level origin (stem + petals stacked entirely
+  // above y=0), unlike every other archetype's roughly origin-centered body,
+  // so at the same anchor point it reads as floating too high — nudge it
+  // down to visually match. One page is always a single archetype, so this
+  // is computed once per page rather than per cell.
+  const archetypeYOffset = a === Archetype.Flora ? 35 : 0;
 
   for (let p = 0; p < BESTIARY_PREFIXES; p++) {
     const colMidX = gx + p * BESTIARY_COL_W + BESTIARY_COL_W / 2;
@@ -775,7 +781,7 @@ function drawBestiary(t: number): void {
       if (encountered.has(variantKey(a, p, v))) {
         const preview = archetypePreview(a, p, v);
         context.save();
-        context.translate(colMidX, rowY + 80);
+        context.translate(colMidX, rowY + 80 + archetypeYOffset);
         context.scale(BESTIARY_SCALE, BESTIARY_SCALE);
         drawMonster(context, 0, 0, preview, t);
         context.restore();
