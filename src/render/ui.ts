@@ -512,15 +512,6 @@ export function drawMenu(
     }
     ctx.fillText(text, textX, textY);
     ctx.shadowBlur = 0;
-
-    if (i === selected) {
-      ctx.strokeStyle = SELECT_GOLD;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(textX + prefixW, textY + 15);
-      ctx.lineTo(textX + prefixW + labelW, textY + 15);
-      ctx.stroke();
-    }
   });
 }
 

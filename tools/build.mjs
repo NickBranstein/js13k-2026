@@ -214,7 +214,6 @@ if (sizeOnly) {
 } else if (watch) {
   console.log('Watch mode: writing dist/bundle.js on changes to src/** (unminified, dev build)');
   await devBuild();
-  console.log('dist/bundle.js ready — serve the repo root (e.g. `npx serve .` or `python3 -m http.server`) and open src/html/index.html');
   const { watch: fsWatch } = await import('node:fs');
   let pending = false;
   fsWatch(path.join(ROOT, 'src'), { recursive: true }, () => {
@@ -229,6 +228,32 @@ if (sizeOnly) {
         console.error(err);
       }
     }, 150);
+  });
+
+  // Tiny static file server so `npm run watch` is a one-command dev loop —
+  // only ever serves files from within ROOT (path.relative check below
+  // rejects anything that escapes it, e.g. a `..` in the URL).
+  const { createServer } = await import('node:http');
+  const DEV_PORT = 8842;
+  const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json' };
+  createServer(async (req, res) => {
+    const urlPath = req.url === '/' ? '/src/html/index.html' : req.url.split('?')[0];
+    const filePath = path.join(ROOT, decodeURIComponent(urlPath));
+    if (path.relative(ROOT, filePath).startsWith('..')) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+    try {
+      const data = await readFile(filePath);
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
+      res.end(data);
+    } catch {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  }).listen(DEV_PORT, () => {
+    console.log(`dev server: http://localhost:${DEV_PORT}/`);
   });
 } else {
   await run();
