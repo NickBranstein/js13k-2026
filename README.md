@@ -17,23 +17,24 @@ requests. Permadeath: HP persists across floors, and a run ends when it runs out
 - **Enter** or **Space** — confirm the selected option
 - **M** — mute / unmute audio
 - **B** — open/close the Bestiary (**←** / **→** or **A** / **D** to page through it)
+- **Esc** — end the current run and return to the title screen
 - Mouse/touch: click or tap a command-bar row to select and confirm it in one step
 
-Every screen (battle actions, Treasure Collect/Leave, floor advances, menus)
-is driven by the same command bar.
+Every screen (battle actions, floor advances, menus) is driven by the same
+command bar.
 
 ### The gist
 
 - **Attack / Potion / Charm** in battle — Charm (driven by a Charisma stat) gives
   a small chance to win without fighting; Potions heal a percentage of max HP and
   aren't guaranteed every fight, so use them deliberately.
-- **Treasure** rooms heal on Collect and have a chance to drop a permanent
-  "Rainbow Fruit" mutation item, which alters both a stat and the unicorn's look.
+- **Treasure** rooms heal you and have a chance to drop a permanent "Rainbow
+  Fruit" mutation item, which alters both a stat and the unicorn's look.
 - **Trap** rooms always hurt, but never enough to end the run outright.
-- Boss floors (every 10th floor) are boosted monster encounters. Defeating one
-  drops a Rainbow Fruit, and dying afterward drops one random Mysterious item
-  (Dust / Dew / Essence / Fragment); collecting one of each permanently boosts
-  your starting stats on future runs.
+- Boss floors (every 10th floor) are boosted monster encounters. Defeating
+  one drops a Rainbow Fruit and one random Mysterious item (Dust / Dew /
+  Essence / Fragment); collecting one of each permanently boosts your
+  starting stats on future runs.
 - The **Bestiary** tracks every archetype/color/variant combination you've
   encountered across runs, and the Title screen remembers your best floor
   reached and how many Mysterious sets you've completed — all persisted
@@ -54,10 +55,11 @@ artifact. It bundles and minifies everything in `src/` into a single
 `index.html` with no external requests, fonts, or assets, then recompresses
 the zip with `advzip`.
 
-For local iteration, run `npm run watch` in one terminal and serve the repo
-root (e.g. `python3 -m http.server 8842`) in another, then open
-`src/html/index.html` — it loads the unminified `dist/bundle.js` directly, so
-you get real gameplay without running the full production pipeline each time.
+For local iteration, `npm run watch` rebuilds `dist/bundle.js` on every change
+under `src/` and also serves the repo root on `http://localhost:8842/` — open
+`http://localhost:8842/src/html/index.html` and it loads the unminified
+`dist/bundle.js` directly, so you get real gameplay without running the full
+production pipeline each time.
 
 ## Source layout
 
